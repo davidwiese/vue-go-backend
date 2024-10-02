@@ -36,11 +36,30 @@ func main() {
         log.Fatal(err)
     }
 
-    // Define HTTP routes
-    http.HandleFunc("/vehicles", vehiclesHandler)
-    http.HandleFunc("/vehicles/", vehicleHandler) // for /vehicles/{id}
+    // Define HTTP routes w/ CORS middleware
+    http.Handle("/vehicles", withCORS(http.HandlerFunc(vehiclesHandler)))
+		http.Handle("/vehicles/", withCORS(http.HandlerFunc(vehicleHandler))) // for /vehicles/{id}
 
     // Start the server
     log.Println("Server started on port 8080")
     log.Fatal(http.ListenAndServe(":8080", nil))
 }
+
+// CORS middleware function
+func withCORS(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        // Set the necessary headers
+        w.Header().Set("Access-Control-Allow-Origin", "*")
+        w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+        w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+        
+        // Handle preflight OPTIONS requests
+        if r.Method == "OPTIONS" {
+            w.WriteHeader(http.StatusOK)
+            return
+        }
+        // Call the next handler
+        next.ServeHTTP(w, r)
+    })
+}
+
