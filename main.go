@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -40,9 +41,14 @@ func main() {
     http.Handle("/vehicles", withCORS(http.HandlerFunc(vehiclesHandler)))
 		http.Handle("/vehicles/", withCORS(http.HandlerFunc(vehicleHandler))) // for /vehicles/{id}
 
+		// DEBUGGING ENDPOINT FOR DEV ONLY
+		http.HandleFunc("/debug", debugHandler)
+
+
     // Start the server
     log.Println("Server started on port 8080")
     log.Fatal(http.ListenAndServe(":8080", nil))
+		
 }
 
 // CORS middleware function
@@ -63,3 +69,26 @@ func withCORS(next http.Handler) http.Handler {
     })
 }
 
+// For debugging/dev only
+func debugHandler(w http.ResponseWriter, r *http.Request) {
+    rows, err := db.Query("SELECT * FROM vehicles")
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+    defer rows.Close()
+
+    var vehicles []Vehicle
+    for rows.Next() {
+        var v Vehicle
+        err := rows.Scan(&v.ID, &v.Name, &v.Status, &v.Latitude, &v.Longitude)
+        if err != nil {
+            http.Error(w, err.Error(), http.StatusInternalServerError)
+            return
+        }
+        vehicles = append(vehicles, v)
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(vehicles)
+}
