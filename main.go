@@ -6,15 +6,24 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/joho/godotenv"
+
 	_ "github.com/go-sql-driver/mysql"
 )
 
 var db *sql.DB
 
 func main() {
-    var err error
-    // Replace with actual connection string
-    dsn := os.Getenv("DB_DSN") // e.g., "username:password@tcp(host:port)/dbname"
+    err := godotenv.Load()
+    if err != nil {
+        log.Println("No .env file found, using environment variables")
+    }
+    
+    dsn := os.Getenv("DB_DSN")
+		if dsn == "" {
+    log.Fatal("DB_DSN environment variable is not set")
+		}
+
     db, err = sql.Open("mysql", dsn)
     if err != nil {
         log.Fatal(err)

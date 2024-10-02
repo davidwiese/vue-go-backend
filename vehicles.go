@@ -49,6 +49,7 @@ func vehicleHandler(w http.ResponseWriter, r *http.Request) {
     }
 }
 
+// Implement the CRUD functions
 func getVehicles(w http.ResponseWriter, r *http.Request) {
     rows, err := db.Query("SELECT id, name, status, latitude, longitude FROM vehicles")
     if err != nil {
@@ -97,6 +98,18 @@ func createVehicle(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(v)
 }
 
+func getVehicle(w http.ResponseWriter, r *http.Request, id int) {
+    var v Vehicle
+    err := db.QueryRow("SELECT id, name, status, latitude, longitude FROM vehicles WHERE id = ?", id).Scan(
+        &v.ID, &v.Name, &v.Status, &v.Latitude, &v.Longitude)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(v)
+}
+
 func updateVehicle(w http.ResponseWriter, r *http.Request, id int) {
     var v Vehicle
     err := json.NewDecoder(r.Body).Decode(&v)
@@ -124,16 +137,4 @@ func deleteVehicle(w http.ResponseWriter, r *http.Request, id int) {
         return
     }
     w.WriteHeader(http.StatusNoContent)
-}
-
-func getVehicle(w http.ResponseWriter, r *http.Request, id int) {
-    var v Vehicle
-    err := db.QueryRow("SELECT id, name, status, latitude, longitude FROM vehicles WHERE id = ?", id).Scan(
-        &v.ID, &v.Name, &v.Status, &v.Latitude, &v.Longitude)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(v)
 }
