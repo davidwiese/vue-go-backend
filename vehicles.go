@@ -14,6 +14,7 @@ type Vehicle struct {
     Status    string  `json:"status"`
     Latitude  float64 `json:"latitude"`
     Longitude float64 `json:"longitude"`
+    Action    string  `json:"action,omitempty"`
 }
 
 // Handler for "/vehicles" endpoint
@@ -95,6 +96,9 @@ func createVehicle(w http.ResponseWriter, r *http.Request) {
     }
     v.ID = int(id)
 
+    // Send the new vehicle to the broadcast channel
+    broadcastChannel <- v
+
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(v)
 }
@@ -129,9 +133,13 @@ func updateVehicle(w http.ResponseWriter, r *http.Request, id int) {
         return
     }
 
+    // Send the updated vehicle to the broadcast channel
+    broadcastChannel <- v
+
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(v)
 }
+
 
 // DELETE /vehicles/{id}
 func deleteVehicle(w http.ResponseWriter, r *http.Request, id int) {
@@ -140,5 +148,13 @@ func deleteVehicle(w http.ResponseWriter, r *http.Request, id int) {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return
     }
+
+    // Send a message indicating deletion
+    v := Vehicle{
+        ID:     id,
+        Action: "delete",
+    }
+    broadcastChannel <- v
+
     w.WriteHeader(http.StatusNoContent)
 }

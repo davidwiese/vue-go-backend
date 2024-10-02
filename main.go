@@ -7,12 +7,22 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/gorilla/websocket"
 	"github.com/joho/godotenv"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
 var db *sql.DB
+
+var upgrader = websocket.Upgrader{
+    ReadBufferSize:  1024,
+    WriteBufferSize: 1024,
+}
+
+// Define the broadcast channel and clients map
+var broadcastChannel = make(chan Vehicle)
+var clients = make(map[*websocket.Conn]bool)
 
 func main() {
     err := godotenv.Load()
@@ -37,18 +47,75 @@ func main() {
         log.Fatal(err)
     }
 
+		// Initialize the clients map
+    clients = make(map[*websocket.Conn]bool)
+
+    // Start the message handler
+    go handleMessages()
+
     // Define HTTP routes w/ CORS middleware
     http.Handle("/vehicles", withCORS(http.HandlerFunc(vehiclesHandler)))
 		http.Handle("/vehicles/", withCORS(http.HandlerFunc(vehicleHandler))) // for /vehicles/{id}
 
+		// WebSocket endpoint
+    http.HandleFunc("/ws", wsEndpoint)
+
 		// DEBUGGING ENDPOINT FOR DEV ONLY
 		http.HandleFunc("/debug", debugHandler)
-
 
     // Start the server
     log.Println("Server started on port 8080")
     log.Fatal(http.ListenAndServe(":8080", nil))
 		
+}
+
+// WebSocket handler
+func wsEndpoint(w http.ResponseWriter, r *http.Request) {
+    upgrader.CheckOrigin = func(r *http.Request) bool { return true }
+
+    conn, err := upgrader.Upgrade(w, r, nil)
+    if err != nil {
+        log.Println(err)
+        return
+    }
+
+    // Register the client
+    clients[conn] = true
+    log.Println("Client connected")
+
+    defer func() {
+        conn.Close()
+        delete(clients, conn)
+        log.Println("Client disconnected")
+    }()
+
+    // Keep the connection open
+    for {
+        _, _, err := conn.ReadMessage()
+        if err != nil {
+            log.Printf("error: %v", err)
+            delete(clients, conn)
+            break
+        }
+    }
+}
+
+// Broadcast messages to clients
+func handleMessages() {
+    for {
+        // Grab the next message from the broadcast channel
+        vehicleUpdate := <-broadcastChannel
+
+        // Send it out to every client that is currently connected
+        for client := range clients {
+            err := client.WriteJSON(vehicleUpdate)
+            if err != nil {
+                log.Printf("error: %v", err)
+                client.Close()
+                delete(clients, client)
+            }
+        }
+    }
 }
 
 // CORS middleware function
