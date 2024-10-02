@@ -49,7 +49,7 @@ func vehicleHandler(w http.ResponseWriter, r *http.Request) {
     }
 }
 
-// Implement the CRUD functions
+// GET /vehicles
 func getVehicles(w http.ResponseWriter, r *http.Request) {
     rows, err := db.Query("SELECT id, name, status, latitude, longitude FROM vehicles")
     if err != nil {
@@ -72,6 +72,7 @@ func getVehicles(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(vehicles)
 }
 
+// POST /vehicles
 func createVehicle(w http.ResponseWriter, r *http.Request) {
     var v Vehicle
     err := json.NewDecoder(r.Body).Decode(&v)
@@ -98,6 +99,7 @@ func createVehicle(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(v)
 }
 
+// GET /vehicles/{id}
 func getVehicle(w http.ResponseWriter, r *http.Request, id int) {
     var v Vehicle
     err := db.QueryRow("SELECT id, name, status, latitude, longitude FROM vehicles WHERE id = ?", id).Scan(
@@ -110,6 +112,7 @@ func getVehicle(w http.ResponseWriter, r *http.Request, id int) {
     json.NewEncoder(w).Encode(v)
 }
 
+// PUT /vehicles/{id}
 func updateVehicle(w http.ResponseWriter, r *http.Request, id int) {
     var v Vehicle
     err := json.NewDecoder(r.Body).Decode(&v)
@@ -130,6 +133,7 @@ func updateVehicle(w http.ResponseWriter, r *http.Request, id int) {
     json.NewEncoder(w).Encode(v)
 }
 
+// DELETE /vehicles/{id}
 func deleteVehicle(w http.ResponseWriter, r *http.Request, id int) {
     _, err := db.Exec("DELETE FROM vehicles WHERE id = ?", id)
     if err != nil {
