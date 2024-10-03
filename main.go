@@ -61,6 +61,11 @@ func main() {
 		log.Fatal("Error pinging database:", err)
 	}
 
+	// Create the vehicles table if it doesn't exist
+	if err := createTableIfNotExists(); err != nil {
+    log.Fatal("Error creating table:", err)
+	}
+
 	// Goroutines
 	// Similar to js async/await, but can run thousands of threads concurrently
 	// managed by Go runtime, not the OS
@@ -85,11 +90,6 @@ func main() {
 	// Log/start the server on port 8080
 	log.Println("Server started on port 5000")
 	log.Fatal(http.ListenAndServe(":5000", nil))
-
-	// Create the vehicles table if it doesn't exist
-	if err := createTableIfNotExists(); err != nil {
-    log.Fatal("Error creating table:", err)
-}
 }
 
 // Handle websocket connections
