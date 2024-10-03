@@ -11,6 +11,7 @@ import (
 type Vehicle struct {
     ID        int     `json:"id"`
     Name      string  `json:"name"`
+    // Status is indexed to improve performance
     Status    string  `json:"status"`
     Latitude  float64 `json:"latitude"`
     Longitude float64 `json:"longitude"`

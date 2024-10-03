@@ -129,8 +129,8 @@ func simulateVehicleMovement() {
     r := rand.New(rand.NewSource(time.Now().UnixNano()))
     for {
         time.Sleep(5 * time.Second)
-        // Fetch vehicles from the database
-        rows, err := db.Query("SELECT id, name, status, latitude, longitude FROM vehicles")
+        // Fetch only active vehicles from the database
+        rows, err := db.Query("SELECT id, name, status, latitude, longitude FROM vehicles WHERE status = 'Active'")
         if err != nil {
             log.Println("Error fetching vehicles:", err)
             continue
