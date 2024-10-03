@@ -52,7 +52,7 @@ func vehicleHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // GET /vehicles
-func getVehicles(w http.ResponseWriter, r *http.Request) {
+func getVehicles(w http.ResponseWriter, _ *http.Request) {
     rows, err := db.Query("SELECT id, name, status, latitude, longitude FROM vehicles")
     if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -105,7 +105,7 @@ func createVehicle(w http.ResponseWriter, r *http.Request) {
 }
 
 // GET /vehicles/{id}
-func getVehicle(w http.ResponseWriter, r *http.Request, id int) {
+func getVehicle(w http.ResponseWriter, _ *http.Request, id int) {
     var v Vehicle
     err := db.QueryRow("SELECT id, name, status, latitude, longitude FROM vehicles WHERE id = ?", id).Scan(
         &v.ID, &v.Name, &v.Status, &v.Latitude, &v.Longitude)
@@ -143,7 +143,7 @@ func updateVehicle(w http.ResponseWriter, r *http.Request, id int) {
 
 
 // DELETE /vehicles/{id}
-func deleteVehicle(w http.ResponseWriter, r *http.Request, id int) {
+func deleteVehicle(w http.ResponseWriter, _ *http.Request, id int) {
     _, err := db.Exec("DELETE FROM vehicles WHERE id = ?", id)
     if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
