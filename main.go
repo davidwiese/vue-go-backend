@@ -4,8 +4,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/joho/godotenv"
@@ -13,8 +15,10 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
+// Define global db variable (thread safe for concurrency)
 var db *sql.DB
 
+// Define the websocket upgrader
 var upgrader = websocket.Upgrader{
     ReadBufferSize:  1024,
     WriteBufferSize: 1024,
@@ -47,11 +51,11 @@ func main() {
         log.Fatal(err)
     }
 
-		// Initialize the clients map
-    clients = make(map[*websocket.Conn]bool)
-
     // Start the message handler
     go handleMessages()
+
+		// Start the vehicle movement simulation
+    go simulateVehicleMovement()
 
     // Define HTTP routes w/ CORS middleware
     http.Handle("/vehicles", withCORS(http.HandlerFunc(vehiclesHandler)))
@@ -75,7 +79,7 @@ func wsEndpoint(w http.ResponseWriter, r *http.Request) {
 
     conn, err := upgrader.Upgrade(w, r, nil)
     if err != nil {
-        log.Println(err)
+        log.Println("WebSocket Upgrade Error:", err)
         return
     }
 
@@ -93,7 +97,7 @@ func wsEndpoint(w http.ResponseWriter, r *http.Request) {
     for {
         _, _, err := conn.ReadMessage()
         if err != nil {
-            log.Printf("error: %v", err)
+            log.Printf("WebSocket Read Error: %v", err)
             delete(clients, conn)
             break
         }
@@ -110,10 +114,49 @@ func handleMessages() {
         for client := range clients {
             err := client.WriteJSON(vehicleUpdate)
             if err != nil {
-                log.Printf("error: %v", err)
+                log.Printf("WebSocket Write Error: %v", err)
                 client.Close()
                 delete(clients, client)
             }
+        }
+    }
+}
+
+// Simulate vehicle movement
+func simulateVehicleMovement() {
+    // Create a new rand.Rand instance with its own seed
+		// Local random number generator is thread safe
+    r := rand.New(rand.NewSource(time.Now().UnixNano()))
+    for {
+        time.Sleep(5 * time.Second)
+        // Fetch vehicles from the database
+        rows, err := db.Query("SELECT id, name, status, latitude, longitude FROM vehicles")
+        if err != nil {
+            log.Println("Error fetching vehicles:", err)
+            continue
+        }
+        vehicles := []Vehicle{}
+        for rows.Next() {
+            var v Vehicle
+            if err := rows.Scan(&v.ID, &v.Name, &v.Status, &v.Latitude, &v.Longitude); err != nil {
+                log.Println("Error scanning vehicle:", err)
+                continue
+            }
+            // Randomly adjust latitude and longitude slightly
+            v.Latitude += (r.Float64() - 0.5) * 0.01
+            v.Longitude += (r.Float64() - 0.5) * 0.01
+            vehicles = append(vehicles, v)
+        }
+        rows.Close()
+        // Update vehicle positions in the database and broadcast updates
+        for _, v := range vehicles {
+            _, err := db.Exec("UPDATE vehicles SET latitude = ?, longitude = ? WHERE id = ?", v.Latitude, v.Longitude, v.ID)
+            if err != nil {
+                log.Println("Error updating vehicle:", err)
+                continue
+            }
+            // Send updated vehicle to broadcast channel
+            broadcastChannel <- v
         }
     }
 }
