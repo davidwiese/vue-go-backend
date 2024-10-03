@@ -8,6 +8,7 @@ import (
 )
 
 // Vehicle represents a vehicle entity
+// `json:"..."` tags define how the struct fields are serialized to JSON
 type Vehicle struct {
     ID        int     `json:"id"`
     Name      string  `json:"name"`
@@ -15,7 +16,7 @@ type Vehicle struct {
     Status    string  `json:"status"`
     Latitude  float64 `json:"latitude"`
     Longitude float64 `json:"longitude"`
-    Action    string  `json:"action,omitempty"`
+    Action    string  `json:"action,omitempty"` // omitted from JSON if empty
 }
 
 // Handler for "/vehicles" endpoint
@@ -32,6 +33,7 @@ func vehiclesHandler(w http.ResponseWriter, r *http.Request) {
 
 // Handler for "/vehicles/{id}" endpoint
 func vehicleHandler(w http.ResponseWriter, r *http.Request) {
+    // Extract the ID from the URL path
     idStr := strings.TrimPrefix(r.URL.Path, "/vehicles/")
     id, err := strconv.Atoi(idStr)
     if err != nil {
@@ -51,7 +53,7 @@ func vehicleHandler(w http.ResponseWriter, r *http.Request) {
     }
 }
 
-// GET /vehicles
+// GET /vehicles (returns all vehicles from db)
 func getVehicles(w http.ResponseWriter, _ *http.Request) {
     rows, err := db.Query("SELECT id, name, status, latitude, longitude FROM vehicles")
     if err != nil {
@@ -74,7 +76,7 @@ func getVehicles(w http.ResponseWriter, _ *http.Request) {
     json.NewEncoder(w).Encode(vehicles)
 }
 
-// POST /vehicles
+// POST /vehicles (adds a new vehicle to db)
 func createVehicle(w http.ResponseWriter, r *http.Request) {
     var v Vehicle
     err := json.NewDecoder(r.Body).Decode(&v)
@@ -104,7 +106,7 @@ func createVehicle(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(v)
 }
 
-// GET /vehicles/{id}
+// GET /vehicles/{id} (returns a single vehicle from db)
 func getVehicle(w http.ResponseWriter, _ *http.Request, id int) {
     var v Vehicle
     err := db.QueryRow("SELECT id, name, status, latitude, longitude FROM vehicles WHERE id = ?", id).Scan(
@@ -117,7 +119,7 @@ func getVehicle(w http.ResponseWriter, _ *http.Request, id int) {
     json.NewEncoder(w).Encode(v)
 }
 
-// PUT /vehicles/{id}
+// PUT /vehicles/{id} (updates a single vehicle in db)
 func updateVehicle(w http.ResponseWriter, r *http.Request, id int) {
     var v Vehicle
     err := json.NewDecoder(r.Body).Decode(&v)
@@ -142,7 +144,7 @@ func updateVehicle(w http.ResponseWriter, r *http.Request, id int) {
 }
 
 
-// DELETE /vehicles/{id}
+// DELETE /vehicles/{id} (deletes a single vehicle from db)
 func deleteVehicle(w http.ResponseWriter, _ *http.Request, id int) {
     _, err := db.Exec("DELETE FROM vehicles WHERE id = ?", id)
     if err != nil {

@@ -15,35 +15,41 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// Define global db variable (thread safe for concurrency)
+// Define global db variable pointer to sql.DB struct (thread safe for concurrency)
 var db *sql.DB
 
-// Define the websocket upgrader
+// Define the websocket upgrader (upgrades HTTP requests to WebSocket connections)
 var upgrader = websocket.Upgrader{
     ReadBufferSize:  1024,
     WriteBufferSize: 1024,
 }
 
-// Define the broadcast channel and clients map
+// Define the broadcast channel to send updates to all connected clients
 var broadcastChannel = make(chan Vehicle)
+
+// Define the clients map to keep track of connected clients
+// The key is a pointer to a websocket.Conn, and the value is a bool
 var clients = make(map[*websocket.Conn]bool)
 
 func main() {
+		// Load environment variables from .env file
     err := godotenv.Load()
     if err != nil {
         log.Println("No .env file found, using environment variables")
     }
     
+		// Get db connection string from environment variable
     dsn := os.Getenv("DB_DSN")
 		if dsn == "" {
     log.Fatal("DB_DSN environment variable is not set")
 		}
 
+		// Open the database connection
     db, err = sql.Open("mysql", dsn)
     if err != nil {
         log.Fatal(err)
     }
-    defer db.Close()
+    defer db.Close() // Ensure the database connection is closed when the program exits
 
     // Test the database connection
     err = db.Ping()
@@ -51,10 +57,10 @@ func main() {
         log.Fatal(err)
     }
 
-    // Start the message handler
+    // Start the message handler in a separate goroutine
     go handleMessages()
 
-		// Start the vehicle movement simulation
+		// Start the vehicle movement simulation in a separate goroutine
     go simulateVehicleMovement()
 
     // Define HTTP routes w/ CORS middleware
@@ -73,10 +79,12 @@ func main() {
 		
 }
 
-// WebSocket handler
+// Handle websocket connections
 func wsEndpoint(w http.ResponseWriter, r *http.Request) {
+		// Allow all cross-origin requests (caution in production)
     upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 
+		// Upgrade the HTTP request to a WebSocket connection
     conn, err := upgrader.Upgrade(w, r, nil)
     if err != nil {
         log.Println("WebSocket Upgrade Error:", err)
@@ -87,6 +95,7 @@ func wsEndpoint(w http.ResponseWriter, r *http.Request) {
     clients[conn] = true
     log.Println("Client connected")
 
+		// Ensure the connection is closed and the client is removed when the function exits
     defer func() {
         conn.Close()
         delete(clients, conn)
@@ -95,6 +104,7 @@ func wsEndpoint(w http.ResponseWriter, r *http.Request) {
 
     // Keep the connection open
     for {
+				// ReadMessage is used here just to detect when the client disconnects
         _, _, err := conn.ReadMessage()
         if err != nil {
             log.Printf("WebSocket Read Error: %v", err)
@@ -104,7 +114,7 @@ func wsEndpoint(w http.ResponseWriter, r *http.Request) {
     }
 }
 
-// Broadcast messages to clients
+// Broadcast messages to all connected clients
 func handleMessages() {
     for {
         // Grab the next message from the broadcast channel
@@ -150,6 +160,7 @@ func simulateVehicleMovement() {
         rows.Close()
         // Update vehicle positions in the database and broadcast updates
         for _, v := range vehicles {
+						// _ ignores the result of db.Exec (number of affected rows)
             _, err := db.Exec("UPDATE vehicles SET latitude = ?, longitude = ? WHERE id = ?", v.Latitude, v.Longitude, v.ID)
             if err != nil {
                 log.Println("Error updating vehicle:", err)
