@@ -8,7 +8,7 @@ import (
 )
 
 // Vehicle represents a vehicle entity
-// `json:"..."` tags define how the struct fields are serialized to JSON
+// The struct tags `json:"..."` specify how fields are encoded/decoded in JSON
 type Vehicle struct {
     ID        int     `json:"id"`
     Name      string  `json:"name"`
@@ -79,19 +79,21 @@ func getVehicles(w http.ResponseWriter, _ *http.Request) {
 // POST /vehicles (adds a new vehicle to db)
 func createVehicle(w http.ResponseWriter, r *http.Request) {
     var v Vehicle
+    // Decode the JSON request body into the Vehicle struct
     err := json.NewDecoder(r.Body).Decode(&v)
     if err != nil {
         http.Error(w, err.Error(), http.StatusBadRequest)
         return
     }
 
+    // Insert the new vehicle into the database
     res, err := db.Exec("INSERT INTO vehicles (name, status, latitude, longitude) VALUES (?, ?, ?, ?)",
         v.Name, v.Status, v.Latitude, v.Longitude)
     if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return
     }
-
+    // Get the ID of the newly inserted vehicle
     id, err := res.LastInsertId()
     if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -109,6 +111,7 @@ func createVehicle(w http.ResponseWriter, r *http.Request) {
 // GET /vehicles/{id} (returns a single vehicle from db)
 func getVehicle(w http.ResponseWriter, _ *http.Request, id int) {
     var v Vehicle
+    // Query the vehicle by ID
     err := db.QueryRow("SELECT id, name, status, latitude, longitude FROM vehicles WHERE id = ?", id).Scan(
         &v.ID, &v.Name, &v.Status, &v.Latitude, &v.Longitude)
     if err != nil {
@@ -122,13 +125,15 @@ func getVehicle(w http.ResponseWriter, _ *http.Request, id int) {
 // PUT /vehicles/{id} (updates a single vehicle in db)
 func updateVehicle(w http.ResponseWriter, r *http.Request, id int) {
     var v Vehicle
+    // Decode the JSON request body into the Vehicle struct
     err := json.NewDecoder(r.Body).Decode(&v)
     if err != nil {
         http.Error(w, err.Error(), http.StatusBadRequest)
         return
     }
-    v.ID = id
+    v.ID = id  // Ensure the ID is set to the correct value
 
+    // Update the vehicle in the database
     _, err = db.Exec("UPDATE vehicles SET name = ?, status = ?, latitude = ?, longitude = ? WHERE id = ?",
         v.Name, v.Status, v.Latitude, v.Longitude, v.ID)
     if err != nil {
