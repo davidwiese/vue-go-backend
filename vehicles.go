@@ -53,26 +53,40 @@ func vehicleHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+
 // GET /vehicles (returns all vehicles from db)
 func getVehicles(w http.ResponseWriter, _ *http.Request) {
+    // rows is slq.Rows object that will contain the results of the query
+    // err is any error returned by the query
 	rows, err := db.Query("SELECT id, name, status, latitude, longitude FROM vehicles")
+    // Check if there was an error
 	if err != nil {
+        // If there was an error, return an HTTP 500 Internal Server Error and stops the function
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+    // Defers the closing of the rows result set until the function returns
+    // Ensures db resources are properly released
 	defer rows.Close()
 
+    // Initialize an empty slice of Vehicle structs
 	vehicles := []Vehicle{}
+    // Iterate over the rows result set
 	for rows.Next() {
 		var v Vehicle
+        // rows.Scan reads the columns of the current row into the fields of v
+        // The & creates pointers, allowing Scan to directly modify the struct fields
 		if err := rows.Scan(&v.ID, &v.Name, &v.Status, &v.Latitude, &v.Longitude); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+        // Adds newly scanned vehicle to the vehicles slice
 		vehicles = append(vehicles, v)
 	}
-
+    // Sets the HTTP response header
 	w.Header().Set("Content-Type", "application/json")
+    // Creates a new JSON encoder that writes to w (the http.ResponseWriter)
+    // Encode converts the vehicles slice to JSON and writes it to the response
 	json.NewEncoder(w).Encode(vehicles)
 }
 
