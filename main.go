@@ -61,6 +61,11 @@ func main() {
 		log.Fatal("Error pinging database:", err)
 	}
 
+	// Goroutines
+	// Similar to js async/await, but can run thousands of threads concurrently
+	// managed by Go runtime, not the OS
+	// Goroutines can run in parallel on multiple CPU cores
+
 	// Start the message handler in a separate goroutine
 	go handleMessages()
 
@@ -119,9 +124,11 @@ func wsEndpoint(w http.ResponseWriter, r *http.Request) {
 }
 
 // Broadcast messages to all connected clients
+// Similar to Socket.io in a Node.js backend
 func handleMessages() {
+	// Outer for loop runs indefinitely, similar to an event listener in Node.js
 	for {
-		// Receive vehicle updates from the broadcast channel
+		// Waits for and receives vehicle updates from the broadcast channel
 		vehicleUpdate := <-broadcastChannel
 
 		// Send the update to every connected client
