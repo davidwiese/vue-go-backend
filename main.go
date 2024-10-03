@@ -12,10 +12,13 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/joho/godotenv"
 
+	// Blank import for side effects - allows database/sql package to use the MySQL driver
+	// to connect to MySQL databases, even though I never directly call any functions from
+	// the package in my code
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// Define global db variable pointer to sql.DB struct (thread safe for concurrency)
+// Define global db variable pointer to sql.DB struct (thread safe for concurrent use)
 var db *sql.DB
 
 // Define the websocket upgrader (upgrades HTTP requests to WebSocket connections)
@@ -45,16 +48,17 @@ func main() {
 		}
 
 		// Open the database connection
+		// The "mysql" driver is used to connect to MySQL databases
     db, err = sql.Open("mysql", dsn)
     if err != nil {
-        log.Fatal(err)
+        log.Fatal("Error opening database:", err)
     }
     defer db.Close() // Ensure the database connection is closed when the program exits
 
     // Test the database connection
     err = db.Ping()
     if err != nil {
-        log.Fatal(err)
+        log.Fatal("Error pinging database:", err)
     }
 
     // Start the message handler in a separate goroutine
@@ -73,7 +77,7 @@ func main() {
 		// DEBUGGING ENDPOINT FOR DEV ONLY
 		http.HandleFunc("/debug", debugHandler)
 
-    // Start the server
+    // Log/start the server on port 8080
     log.Println("Server started on port 8080")
     log.Fatal(http.ListenAndServe(":8080", nil))
 		
@@ -117,10 +121,10 @@ func wsEndpoint(w http.ResponseWriter, r *http.Request) {
 // Broadcast messages to all connected clients
 func handleMessages() {
     for {
-        // Grab the next message from the broadcast channel
+        // Receive vehicle updates from the broadcast channel
         vehicleUpdate := <-broadcastChannel
 
-        // Send it out to every client that is currently connected
+        // Send the update to every connected client
         for client := range clients {
             err := client.WriteJSON(vehicleUpdate)
             if err != nil {
@@ -132,7 +136,7 @@ func handleMessages() {
     }
 }
 
-// Simulate vehicle movement
+// Simulate vehicle movement by periodically updating their positions
 func simulateVehicleMovement() {
     // Create a new rand.Rand instance with its own seed
 		// Local random number generator is thread safe
@@ -145,6 +149,7 @@ func simulateVehicleMovement() {
             log.Println("Error fetching vehicles:", err)
             continue
         }
+
         vehicles := []Vehicle{}
         for rows.Next() {
             var v Vehicle
@@ -158,6 +163,7 @@ func simulateVehicleMovement() {
             vehicles = append(vehicles, v)
         }
         rows.Close()
+
         // Update vehicle positions in the database and broadcast updates
         for _, v := range vehicles {
 						// _ ignores the result of db.Exec (number of affected rows)
@@ -166,16 +172,17 @@ func simulateVehicleMovement() {
                 log.Println("Error updating vehicle:", err)
                 continue
             }
-            // Send updated vehicle to broadcast channel
+            // Send the updated vehicle to the broadcast channel
             broadcastChannel <- v
         }
     }
 }
 
-// CORS middleware function
+// Middleware to add CORS headers to HTTP responses
 func withCORS(next http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         // Set the necessary headers
+				// Allow all origins (for development purposes). In production, set this to your frontend's origin.
         w.Header().Set("Access-Control-Allow-Origin", "*")
         w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
@@ -190,7 +197,7 @@ func withCORS(next http.Handler) http.Handler {
     })
 }
 
-// For debugging/dev only
+// Debugging endpoint to retrieve all vehicles (for development only)
 func debugHandler(w http.ResponseWriter, r *http.Request) {
     rows, err := db.Query("SELECT * FROM vehicles")
     if err != nil {
