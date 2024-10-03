@@ -85,6 +85,11 @@ func main() {
 	// Log/start the server on port 8080
 	log.Println("Server started on port 5000")
 	log.Fatal(http.ListenAndServe(":5000", nil))
+
+	// Create the vehicles table if it doesn't exist
+	if err := createTableIfNotExists(); err != nil {
+    log.Fatal("Error creating table:", err)
+}
 }
 
 // Handle websocket connections
@@ -225,4 +230,17 @@ func debugHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(vehicles)
+}
+
+func createTableIfNotExists() error {
+    _, err := db.Exec(`
+        CREATE TABLE IF NOT EXISTS vehicles (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            status VARCHAR(50) NOT NULL,
+            latitude DOUBLE,
+            longitude DOUBLE
+        )
+    `)
+    return err
 }
