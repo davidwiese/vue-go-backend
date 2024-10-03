@@ -83,9 +83,8 @@ func main() {
 	http.HandleFunc("/debug", debugHandler)
 
 	// Log/start the server on port 8080
-	log.Println("Server started on port 8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
-
+	log.Println("Server started on port 5000")
+	log.Fatal(http.ListenAndServe(":5000", nil))
 }
 
 // Handle websocket connections
