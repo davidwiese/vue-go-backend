@@ -76,12 +76,8 @@ Building the **Vue Go Fleet Tracking Backend** was an enriching experience that 
   - Deployed the application on AWS Elastic Beanstalk, configuring environment variables, and managing deployments.
   
 - **Security Considerations:**
-  - Implemented CORS policies to restrict API access to trusted origins.
   - Explored secure handling of sensitive data using environment variables and AWS best practices.
-  
-- **Framework Utilization:**
-  - Employed the **Gin** framework to streamline HTTP request handling and routing.
-  - Integrated **Viper** for flexible and dynamic configuration management.
+
   
 This project not only solidified my backend development skills but also enhanced my ability to integrate and deploy applications in cloud environments effectively.
 
