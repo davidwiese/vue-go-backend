@@ -1,14 +1,14 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"log"
 	"math/rand"
 	"net/http"
-	"os"
 	"time"
 
+	"github.com/davidwiese/fleet-tracker-backend/internal/config"
+	"github.com/davidwiese/fleet-tracker-backend/internal/database"
 	"github.com/gorilla/websocket"
 	"github.com/joho/godotenv"
 
@@ -19,7 +19,7 @@ import (
 )
 
 // Define global db variable pointer to sql.DB struct (thread safe for concurrent use)
-var db *sql.DB
+var db *database.DB
 
 // Define the websocket upgrader (upgrades HTTP requests to WebSocket connections)
 var upgrader = websocket.Upgrader{
@@ -36,34 +36,26 @@ var clients = make(map[*websocket.Conn]bool)
 
 func main() {
 	// Load environment variables from .env file
-	err := godotenv.Load()
+	if err := godotenv.Load(); err != nil {
+        log.Println("No .env file found, using environment variables")
+    }
+
+	// Load config
+	cfg, err := config.LoadConfig()
 	if err != nil {
-		log.Println("No .env file found, using environment variables")
+		log.Fatal("Error loading config:", err)
 	}
 
-	// Get db connection string from environment variable
-	dsn := os.Getenv("DB_DSN")
-	if dsn == "" {
-		log.Fatal("DB_DSN environment variable is not set")
-	}
-
-	// Open the database connection
-	// The "mysql" driver is used to connect to MySQL databases
-	db, err = sql.Open("mysql", dsn)
+	// Initialize database
+	db, err = database.NewDB(cfg.DBConfig.DSN)
 	if err != nil {
-		log.Fatal("Error opening database:", err)
+		log.Fatal("Error initializing database:", err)
 	}
-	defer db.Close() // Ensure the database connection is closed when the program exits
+	defer db.Close()
 
-	// Test the database connection
-	err = db.Ping()
-	if err != nil {
-		log.Fatal("Error pinging database:", err)
-	}
-
-	// Create the vehicles table if it doesn't exist
-	if err := createTableIfNotExists(); err != nil {
-    log.Fatal("Error creating table:", err)
+	// Create tables
+  if err := db.CreateTableIfNotExists(); err != nil {
+		log.Fatal("Error creating tables:", err)
 	}
 
 	// Goroutines
@@ -230,17 +222,4 @@ func debugHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(vehicles)
-}
-
-func createTableIfNotExists() error {
-    _, err := db.Exec(`
-        CREATE TABLE IF NOT EXISTS vehicles (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
-            status VARCHAR(50) NOT NULL,
-            latitude DOUBLE,
-            longitude DOUBLE
-        )
-    `)
-    return err
 }
