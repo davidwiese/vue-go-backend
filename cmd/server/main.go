@@ -7,7 +7,7 @@ import (
 	"github.com/davidwiese/fleet-tracker-backend/internal/api"
 	"github.com/davidwiese/fleet-tracker-backend/internal/config"
 	"github.com/davidwiese/fleet-tracker-backend/internal/database"
-	"github.com/davidwiese/fleet-tracker-backend/internal/simulator"
+	"github.com/davidwiese/fleet-tracker-backend/internal/onestepgps"
 	"github.com/davidwiese/fleet-tracker-backend/internal/websocket"
 	"github.com/joho/godotenv"
 )
@@ -40,18 +40,17 @@ func main() {
   hub := websocket.NewHub()
   go hub.Run()
 
+	// Initialize OneStepGPS client
+  gpsClient := onestepgps.NewClient(cfg.APIConfig.GPSApiKey)
+
   // Create API handler
-  handler := api.NewHandler(db, hub.Broadcast)
+  handler := api.NewHandler(db, hub.Broadcast, gpsClient)
 
   // Setup routes
   handler.SetupRoutes()
 
   // Setup WebSocket endpoint
   http.HandleFunc("/ws", hub.HandleWebSocket)
-
-	// Initialize and start vehicle simulator
-  sim := simulator.NewSimulator(db, hub.Broadcast)
-  go sim.Start()
 
   // Start server
   log.Printf("Server started on port %s", cfg.APIConfig.Port)
