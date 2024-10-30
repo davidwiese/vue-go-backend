@@ -3,11 +3,12 @@ package main
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/davidwiese/fleet-tracker-backend/internal/api"
 	"github.com/davidwiese/fleet-tracker-backend/internal/config"
 	"github.com/davidwiese/fleet-tracker-backend/internal/database"
-	"github.com/davidwiese/fleet-tracker-backend/internal/simulator"
+	"github.com/davidwiese/fleet-tracker-backend/internal/onestepgps"
 	"github.com/davidwiese/fleet-tracker-backend/internal/websocket"
 	"github.com/joho/godotenv"
 )
@@ -36,22 +37,21 @@ func main() {
 		log.Fatal("Error creating tables:", err)
 	}
 
-	// Initialize WebSocket hub
-  hub := websocket.NewHub()
+	// Initialize OneStepGPS client
+  gpsClient := onestepgps.NewClient(cfg.APIConfig.GPSApiKey)
+
+	// Initialize WebSocket hub with GPS client and update interval
+  hub := websocket.NewHub(gpsClient, 5*time.Second)
   go hub.Run()
 
   // Create API handler
-  handler := api.NewHandler(db, hub.Broadcast)
+  handler := api.NewHandler(db, hub.Broadcast, gpsClient)
 
   // Setup routes
   handler.SetupRoutes()
 
   // Setup WebSocket endpoint
   http.HandleFunc("/ws", hub.HandleWebSocket)
-
-	// Initialize and start vehicle simulator
-  sim := simulator.NewSimulator(db, hub.Broadcast)
-  go sim.Start()
 
   // Start server
   log.Printf("Server started on port %s", cfg.APIConfig.Port)

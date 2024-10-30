@@ -24,6 +24,7 @@ type APIConfig struct {
     AllowedOrigins  []string
     ReadTimeout     int
     WriteTimeout    int
+    GPSApiKey       string
 }
 
 type WebSocketConfig struct {
@@ -53,6 +54,10 @@ func LoadConfig() (*Config, error) {
     origins := getEnvSlice("ALLOWED_ORIGINS", []string{"http://localhost:5173"})
     readTimeout := getEnvInt("API_READ_TIMEOUT", 10)
     writeTimeout := getEnvInt("API_WRITE_TIMEOUT", 10)
+    gpsApiKey := os.Getenv("GPS_API_KEY")
+    if gpsApiKey == "" {
+        return nil, fmt.Errorf("GPS_API_KEY environment variable is not set")
+    }
 
     // WebSocket configuration
     wsReadBuffer := getEnvInt("WS_READ_BUFFER", 1024)
@@ -74,6 +79,7 @@ func LoadConfig() (*Config, error) {
             AllowedOrigins: origins,
             ReadTimeout:    readTimeout,
             WriteTimeout:   writeTimeout,
+            GPSApiKey:      gpsApiKey,
         },
         WebSocket: WebSocketConfig{
             ReadBufferSize:  wsReadBuffer,
