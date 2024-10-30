@@ -12,18 +12,18 @@ import (
 
 // Handler struct to hold dependencies
 type Handler struct {
-	DB              *database.DB
-	BroadcastChannel chan models.Vehicle
-	GPSClient        *onestepgps.Client
+    DB               *database.DB
+    BroadcastChannel chan []models.Vehicle  // Update this line
+    GPSClient        *onestepgps.Client
 }
 
 // NewHandler creates a new Handler instance
-func NewHandler(db *database.DB, broadcastChannel chan models.Vehicle, gpsClient *onestepgps.Client) *Handler {
-	return &Handler{
-		DB:               db,
-		BroadcastChannel: broadcastChannel,
-		GPSClient:        gpsClient,
-	}
+func NewHandler(db *database.DB, broadcastChannel chan []models.Vehicle, gpsClient *onestepgps.Client) *Handler {
+    return &Handler{
+        DB:               db,
+        BroadcastChannel: broadcastChannel,
+        GPSClient:        gpsClient,
+    }
 }
 
 // VehiclesHandler handles "/vehicles" endpoint

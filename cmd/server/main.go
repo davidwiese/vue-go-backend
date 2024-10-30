@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/davidwiese/fleet-tracker-backend/internal/api"
 	"github.com/davidwiese/fleet-tracker-backend/internal/config"
@@ -36,12 +37,12 @@ func main() {
 		log.Fatal("Error creating tables:", err)
 	}
 
-	// Initialize WebSocket hub
-  hub := websocket.NewHub()
-  go hub.Run()
-
 	// Initialize OneStepGPS client
   gpsClient := onestepgps.NewClient(cfg.APIConfig.GPSApiKey)
+
+	// Initialize WebSocket hub with GPS client and update interval
+  hub := websocket.NewHub(gpsClient, 5*time.Second)
+  go hub.Run()
 
   // Create API handler
   handler := api.NewHandler(db, hub.Broadcast, gpsClient)
