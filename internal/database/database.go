@@ -35,8 +35,14 @@ func NewDB(dsn string) (*DB, error) {
 }
 
 func (db *DB) CreateTableIfNotExists() error {
+    // First, try dropping the user_preferences table if it exists
+    _, err := db.Exec(`DROP TABLE IF EXISTS user_preferences`)
+    if err != nil {
+        return fmt.Errorf("error dropping user_preferences table: %w", err)
+    }
+
     // Create vehicles table
-    _, err := db.Exec(`
+    _, err = db.Exec(`
         CREATE TABLE IF NOT EXISTS vehicles (
             id INT AUTO_INCREMENT PRIMARY KEY,
             name VARCHAR(255) NOT NULL,
@@ -51,7 +57,7 @@ func (db *DB) CreateTableIfNotExists() error {
 
     // Create preferences table with client_id
     _, err = db.Exec(`
-        CREATE TABLE IF NOT EXISTS user_preferences (
+        CREATE TABLE user_preferences (
             id INT AUTO_INCREMENT PRIMARY KEY,
             device_id VARCHAR(255) NOT NULL,
             client_id VARCHAR(255) NOT NULL DEFAULT 'default',
@@ -66,14 +72,17 @@ func (db *DB) CreateTableIfNotExists() error {
     return err
 }
 
-// GetAllPreferencesForClient retrieves all preferences for a specific client
+
 func (db *DB) GetAllPreferencesForClient(clientID string) ([]models.UserPreference, error) {
-    rows, err := db.Query(`
+    query := `
         SELECT id, device_id, client_id, display_name, is_hidden, sort_order, created_at, updated_at
         FROM user_preferences
         WHERE client_id = ?
         ORDER BY sort_order ASC
-    `, clientID)
+    `
+    fmt.Printf("Executing query: %s with clientID: %s\n", query, clientID)
+    
+    rows, err := db.Query(query, clientID)
     if err != nil {
         return nil, fmt.Errorf("error querying preferences: %w", err)
     }
@@ -105,6 +114,12 @@ func (db *DB) GetAllPreferencesForClient(clientID string) ([]models.UserPreferen
         }
         preferences = append(preferences, pref)
     }
+
+    // If no preferences found, return empty slice instead of nil
+    if preferences == nil {
+        preferences = []models.UserPreference{}
+    }
+
     return preferences, nil
 }
 
