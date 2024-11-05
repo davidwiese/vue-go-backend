@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/davidwiese/fleet-tracker-backend/internal/models"
 	_ "github.com/go-sql-driver/mysql"
@@ -162,8 +161,26 @@ func (db *DB) GetPreferenceByDeviceAndClientID(deviceID, clientID string) (*mode
 
 // CreatePreference creates a new preference
 func (db *DB) CreatePreference(pref *models.PreferenceCreate) (*models.UserPreference, error) {
-    _, err := db.Exec(`
-        INSERT INTO user_preferences (device_id, client_id, display_name, is_hidden, sort_order)
+    // First check if preference exists
+    existing, err := db.GetPreferenceByDeviceAndClientID(pref.DeviceID, pref.ClientID)
+    if err != nil {
+        return nil, fmt.Errorf("error checking existing preference: %w", err)
+    }
+
+    if existing != nil {
+        // If exists, update it
+        update := &models.PreferenceUpdate{
+            DisplayName: &pref.DisplayName,
+            IsHidden: &pref.IsHidden,
+            SortOrder: &pref.SortOrder,
+        }
+        return db.UpdatePreferenceByDeviceAndClientID(pref.DeviceID, pref.ClientID, update)
+    }
+
+    // If doesn't exist, create new
+    _, err = db.Exec(`
+        INSERT INTO user_preferences 
+        (device_id, client_id, display_name, is_hidden, sort_order)
         VALUES (?, ?, ?, ?, ?)
     `, pref.DeviceID, pref.ClientID, pref.DisplayName, pref.IsHidden, pref.SortOrder)
     if err != nil {
@@ -176,8 +193,8 @@ func (db *DB) CreatePreference(pref *models.PreferenceCreate) (*models.UserPrefe
 
 // UpdatePreferenceByDeviceAndClientID updates an existing preference
 func (db *DB) UpdatePreferenceByDeviceAndClientID(deviceID, clientID string, updates *models.PreferenceUpdate) (*models.UserPreference, error) {
-    query := "UPDATE user_preferences SET updated_at = ?"
-    args := []interface{}{time.Now()}
+    query := "UPDATE user_preferences SET updated_at = NOW()"
+    args := []interface{}{}
 
     if updates.DisplayName != nil {
         query += ", display_name = ?"
@@ -195,9 +212,18 @@ func (db *DB) UpdatePreferenceByDeviceAndClientID(deviceID, clientID string, upd
     query += " WHERE device_id = ? AND client_id = ?"
     args = append(args, deviceID, clientID)
 
-    _, err := db.Exec(query, args...)
+    result, err := db.Exec(query, args...)
     if err != nil {
         return nil, fmt.Errorf("error updating preference: %w", err)
+    }
+
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+        return nil, fmt.Errorf("error getting rows affected: %w", err)
+    }
+
+    if rowsAffected == 0 {
+        return nil, fmt.Errorf("no preference found for device_id: %s and client_id: %s", deviceID, clientID)
     }
 
     return db.GetPreferenceByDeviceAndClientID(deviceID, clientID)

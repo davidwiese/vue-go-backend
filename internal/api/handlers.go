@@ -144,11 +144,15 @@ func (h *Handler) getPreference(w http.ResponseWriter, r *http.Request, deviceID
 
 // createPreference creates a new preference
 func (h *Handler) createPreference(w http.ResponseWriter, r *http.Request) {
+    fmt.Println("Creating preference...")
     var newPref models.PreferenceCreate
     if err := json.NewDecoder(r.Body).Decode(&newPref); err != nil {
-        http.Error(w, "Invalid request body", http.StatusBadRequest)
+        fmt.Printf("Error decoding request body: %v\n", err)
+        http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
         return
     }
+
+    fmt.Printf("Received preference create request: %+v\n", newPref)
 
     if newPref.ClientID == "" {
         newPref.ClientID = "default"
@@ -156,10 +160,13 @@ func (h *Handler) createPreference(w http.ResponseWriter, r *http.Request) {
 
     pref, err := h.DB.CreatePreference(&newPref)
     if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
+        fmt.Printf("Error creating preference: %v\n", err)
+        http.Error(w, fmt.Sprintf("Error creating preference: %v", err), http.StatusInternalServerError)
         return
     }
 
+    fmt.Printf("Successfully created/updated preference: %+v\n", pref)
+    
     w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(http.StatusCreated)
     json.NewEncoder(w).Encode(pref)
@@ -175,6 +182,18 @@ func (h *Handler) updatePreference(w http.ResponseWriter, r *http.Request, devic
     var updates models.PreferenceUpdate
     if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
         http.Error(w, "Invalid request body", http.StatusBadRequest)
+        return
+    }
+
+    // Try to get existing preference first
+    existing, err := h.DB.GetPreferenceByDeviceAndClientID(deviceID, clientID)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    if existing == nil {
+        http.Error(w, "Preference not found", http.StatusNotFound)
         return
     }
 
