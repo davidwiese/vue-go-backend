@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -95,4 +96,112 @@ func (h *Handler) debugHandler(w http.ResponseWriter, r *http.Request) {
 
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(vehicles)
+}
+
+// Add PreferencesHandler to handle all preference-related requests
+func (h *Handler) PreferencesHandler(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		if deviceID := strings.TrimPrefix(r.URL.Path, "/preferences/"); deviceID != "" {
+			h.getPreference(w, r, deviceID)
+			return
+		}
+		h.getAllPreferences(w, r)
+	case http.MethodPost:
+		h.createPreference(w, r)
+	case http.MethodPut:
+		deviceID := strings.TrimPrefix(r.URL.Path, "/preferences/")
+		h.updatePreference(w, r, deviceID)
+	case http.MethodDelete:
+		deviceID := strings.TrimPrefix(r.URL.Path, "/preferences/")
+		h.deletePreference(w, r, deviceID)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// getAllPreferences returns all preferences
+func (h *Handler) getAllPreferences(w http.ResponseWriter, r *http.Request) {
+	preferences, err := h.DB.GetAllPreferences()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error getting preferences: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(preferences)
+}
+
+// getPreference returns a specific preference by device ID
+func (h *Handler) getPreference(w http.ResponseWriter, r *http.Request, deviceID string) {
+	pref, err := h.DB.GetPreferenceByDeviceID(deviceID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error getting preference: %v", err), http.StatusInternalServerError)
+		return
+	}
+	if pref == nil {
+		http.Error(w, "Preference not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(pref)
+}
+
+// createPreference creates a new preference
+func (h *Handler) createPreference(w http.ResponseWriter, r *http.Request) {
+	var newPref models.PreferenceCreate
+	if err := json.NewDecoder(r.Body).Decode(&newPref); err != nil {
+		http.Error(w, fmt.Sprintf("Error decoding request: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	pref, err := h.DB.CreatePreference(&newPref)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error creating preference: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(pref)
+}
+
+// updatePreference updates an existing preference
+func (h *Handler) updatePreference(w http.ResponseWriter, r *http.Request, deviceID string) {
+	if deviceID == "" {
+		http.Error(w, "Device ID is required", http.StatusBadRequest)
+		return
+	}
+
+	var updates models.PreferenceUpdate
+	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
+		http.Error(w, fmt.Sprintf("Error decoding request: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	pref, err := h.DB.UpdatePreference(deviceID, &updates)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error updating preference: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(pref)
+}
+
+// deletePreference deletes a preference
+func (h *Handler) deletePreference(w http.ResponseWriter, r *http.Request, deviceID string) {
+	if deviceID == "" {
+		http.Error(w, "Device ID is required", http.StatusBadRequest)
+		return
+	}
+
+	err := h.DB.DeletePreference(deviceID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error deleting preference: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
