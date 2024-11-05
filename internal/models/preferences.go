@@ -5,6 +5,7 @@ import "time"
 type UserPreference struct {
 	ID          int       `json:"id"`
 	DeviceID    string    `json:"device_id"`
+	ClientID    string    `json:"client_id"`
 	DisplayName string    `json:"display_name"`
 	IsHidden    bool      `json:"is_hidden"`
 	SortOrder   int       `json:"sort_order"`
@@ -15,6 +16,7 @@ type UserPreference struct {
 // PreferenceCreate represents the data needed to create a new preference
 type PreferenceCreate struct {
 	DeviceID    string `json:"device_id"`
+	ClientID    string    `json:"client_id"`
 	DisplayName string `json:"display_name,omitempty"`
 	IsHidden    bool   `json:"is_hidden"`
 	SortOrder   int    `json:"sort_order"`
