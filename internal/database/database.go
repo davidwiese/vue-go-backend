@@ -3,7 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
-	"time"
+	"strings"
 
 	"github.com/davidwiese/fleet-tracker-backend/internal/models"
 	_ "github.com/go-sql-driver/mysql"
@@ -14,6 +14,13 @@ type DB struct {
 }
 
 func NewDB(dsn string) (*DB, error) {
+	// Add parseTime=true parameter safely
+	if !strings.Contains(dsn, "?") {
+		dsn += "?parseTime=true"
+	} else if !strings.Contains(dsn, "parseTime=true") {
+		dsn += "&parseTime=true"
+	}
+
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("error opening database: %w", err)
@@ -52,7 +59,7 @@ func (db *DB) CreateTableIfNotExists() error {
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			UNIQUE KEY unique_device (device_id)
-		)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 	`)
 	return err
 }
@@ -75,9 +82,12 @@ func (db *DB) CreatePreference(pref *models.PreferenceCreate) (*models.UserPrefe
 	return db.GetPreference(int(id))
 }
 
+
 // GetPreference retrieves a preference by ID
 func (db *DB) GetPreference(id int) (*models.UserPreference, error) {
 	var pref models.UserPreference
+	var createdAt, updatedAt sql.NullTime
+
 	err := db.QueryRow(`
 		SELECT id, device_id, display_name, is_hidden, sort_order, created_at, updated_at
 		FROM user_preferences
@@ -88,8 +98,8 @@ func (db *DB) GetPreference(id int) (*models.UserPreference, error) {
 		&pref.DisplayName,
 		&pref.IsHidden,
 		&pref.SortOrder,
-		&pref.CreatedAt,
-		&pref.UpdatedAt,
+		&createdAt,
+		&updatedAt,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -97,12 +107,22 @@ func (db *DB) GetPreference(id int) (*models.UserPreference, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error getting preference: %w", err)
 	}
+
+	if createdAt.Valid {
+		pref.CreatedAt = createdAt.Time
+	}
+	if updatedAt.Valid {
+		pref.UpdatedAt = updatedAt.Time
+	}
+
 	return &pref, nil
 }
 
 // GetPreferenceByDeviceID retrieves a preference by device ID
 func (db *DB) GetPreferenceByDeviceID(deviceID string) (*models.UserPreference, error) {
 	var pref models.UserPreference
+	var createdAt, updatedAt sql.NullTime
+
 	err := db.QueryRow(`
 		SELECT id, device_id, display_name, is_hidden, sort_order, created_at, updated_at
 		FROM user_preferences
@@ -113,8 +133,8 @@ func (db *DB) GetPreferenceByDeviceID(deviceID string) (*models.UserPreference, 
 		&pref.DisplayName,
 		&pref.IsHidden,
 		&pref.SortOrder,
-		&pref.CreatedAt,
-		&pref.UpdatedAt,
+		&createdAt,
+		&updatedAt,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -122,6 +142,14 @@ func (db *DB) GetPreferenceByDeviceID(deviceID string) (*models.UserPreference, 
 	if err != nil {
 		return nil, fmt.Errorf("error getting preference by device ID: %w", err)
 	}
+
+	if createdAt.Valid {
+		pref.CreatedAt = createdAt.Time
+	}
+	if updatedAt.Valid {
+		pref.UpdatedAt = updatedAt.Time
+	}
+
 	return &pref, nil
 }
 
@@ -140,18 +168,28 @@ func (db *DB) GetAllPreferences() ([]models.UserPreference, error) {
 	var preferences []models.UserPreference
 	for rows.Next() {
 		var pref models.UserPreference
+		var createdAt, updatedAt sql.NullTime
+
 		err := rows.Scan(
 			&pref.ID,
 			&pref.DeviceID,
 			&pref.DisplayName,
 			&pref.IsHidden,
 			&pref.SortOrder,
-			&pref.CreatedAt,
-			&pref.UpdatedAt,
+			&createdAt,
+			&updatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning preference row: %w", err)
 		}
+
+		if createdAt.Valid {
+			pref.CreatedAt = createdAt.Time
+		}
+		if updatedAt.Valid {
+			pref.UpdatedAt = updatedAt.Time
+		}
+
 		preferences = append(preferences, pref)
 	}
 	return preferences, nil
@@ -160,8 +198,8 @@ func (db *DB) GetAllPreferences() ([]models.UserPreference, error) {
 // UpdatePreference updates an existing preference
 func (db *DB) UpdatePreference(deviceID string, updates *models.PreferenceUpdate) (*models.UserPreference, error) {
 	// Build dynamic update query based on provided fields
-	query := "UPDATE user_preferences SET updated_at = ?"
-	args := []interface{}{time.Now()}
+	query := "UPDATE user_preferences SET updated_at = CURRENT_TIMESTAMP"
+	args := []interface{}{}
 
 	if updates.DisplayName != nil {
 		query += ", display_name = ?"

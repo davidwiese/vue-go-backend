@@ -1,15 +1,29 @@
 package database
 
 import (
+	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/davidwiese/fleet-tracker-backend/internal/models"
 	"github.com/joho/godotenv"
 )
 
+// maskPassword replaces password in DSN with ****** for safe logging
+func maskPassword(dsn string) string {
+	parts := strings.Split(dsn, "@")
+	if len(parts) != 2 {
+		return "invalid-dsn-format"
+	}
+	credentialParts := strings.Split(parts[0], ":")
+	if len(credentialParts) != 2 {
+		return "invalid-credentials-format"
+	}
+	return fmt.Sprintf("%s:******@%s", credentialParts[0], parts[1])
+}
 func TestPreferenceCRUD(t *testing.T) {
-	// Load .env file
+	// Load .env file from project root
 	if err := godotenv.Load("../../.env"); err != nil {
 		t.Logf("Warning: .env file not found, using environment variables")
 	}
@@ -20,12 +34,22 @@ func TestPreferenceCRUD(t *testing.T) {
 		t.Fatal("DB_DSN environment variable is required")
 	}
 
+	// Print DSN for debugging (remove sensitive info)
+	safeDSN := maskPassword(dsn)
+	t.Logf("Using DSN: %s", safeDSN)
+
 	// Connect to database
 	db, err := NewDB(dsn)
 	if err != nil {
 		t.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer db.Close()
+
+	// Test database connection
+	if err := db.Ping(); err != nil {
+		t.Fatalf("Failed to ping database: %v", err)
+	}
+	t.Log("Successfully connected to database")
 
 	// Clean up any existing test data
 	cleanup(t, db)
@@ -36,6 +60,7 @@ func TestPreferenceCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create tables: %v", err)
 	}
+	t.Log("Successfully created/verified tables")
 
 	// Test Create
 	t.Run("Create Preference", func(t *testing.T) {
