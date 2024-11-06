@@ -186,6 +186,7 @@ func (db *DB) CreatePreference(pref *models.PreferenceCreate) (*models.UserPrefe
     if err != nil {
         return nil, fmt.Errorf("error creating preference: %w", err)
     }
+    fmt.Printf("Created preference: device_id=%s, client_id=%s\n", pref.DeviceID, pref.ClientID)
 
     // Return the newly created preference
     return db.GetPreferenceByDeviceAndClientID(pref.DeviceID, pref.ClientID)
@@ -225,6 +226,7 @@ func (db *DB) UpdatePreferenceByDeviceAndClientID(deviceID, clientID string, upd
     if rowsAffected == 0 {
         return nil, fmt.Errorf("no preference found for device_id: %s and client_id: %s", deviceID, clientID)
     }
+    fmt.Printf("Updated preference: device_id=%s, client_id=%s\n", deviceID, clientID)
 
     return db.GetPreferenceByDeviceAndClientID(deviceID, clientID)
 }

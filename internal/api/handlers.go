@@ -166,6 +166,7 @@ func (h *Handler) createPreference(w http.ResponseWriter, r *http.Request) {
     }
 
     fmt.Printf("Successfully created/updated preference: %+v\n", pref)
+    fmt.Printf("Preference created: %+v\n", pref)
     
     w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(http.StatusCreated)
@@ -202,6 +203,7 @@ func (h *Handler) updatePreference(w http.ResponseWriter, r *http.Request, devic
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return
     }
+    fmt.Printf("Preference updated: %+v\n", pref)
 
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(pref)
