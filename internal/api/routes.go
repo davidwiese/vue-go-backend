@@ -8,16 +8,18 @@ import (
 
 // SetupRoutes configures all the routes for our application
 func (h *Handler) SetupRoutes() {
-	// Vehicle routes with CORS middleware
-	http.Handle("/vehicles", withCORS(http.HandlerFunc(h.VehiclesHandler)))
-	http.Handle("/vehicles/", withCORS(http.HandlerFunc(h.VehicleHandler)))
+    // Vehicle routes with CORS middleware
+    http.Handle("/vehicles", withCORS(http.HandlerFunc(h.VehiclesHandler)))
+    http.Handle("/vehicles/", withCORS(http.HandlerFunc(h.VehicleHandler)))
 
     // Preferences routes with CORS middleware
-	http.Handle("/preferences", withCORS(http.HandlerFunc(h.PreferencesHandler)))
-	http.Handle("/preferences/", withCORS(http.HandlerFunc(h.PreferencesHandler)))
-	
-	// Debug endpoint (consider removing in production)
-	http.HandleFunc("/debug", h.debugHandler)
+    // Order matters: more specific routes first
+    http.Handle("/preferences/batch", withCORS(http.HandlerFunc(h.BatchUpdatePreferences)))
+    http.Handle("/preferences", withCORS(http.HandlerFunc(h.PreferencesHandler)))
+    http.Handle("/preferences/", withCORS(http.HandlerFunc(h.PreferencesHandler)))
+    
+    // Debug endpoint (consider removing in production)
+    http.HandleFunc("/debug", h.debugHandler)
 }
 
 // getAllowedOrigins returns the list of allowed origins from environment variables

@@ -262,41 +262,47 @@ func (h *Handler) PreferencesHandler(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) BatchUpdatePreferences(w http.ResponseWriter, r *http.Request) {
     var preferences []models.PreferenceCreate
     if err := json.NewDecoder(r.Body).Decode(&preferences); err != nil {
-        http.Error(w, "Invalid request body", http.StatusBadRequest)
+        http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
         return
     }
 
-    // Use a transaction to update all preferences
+    if len(preferences) == 0 {
+        http.Error(w, "No preferences provided", http.StatusBadRequest)
+        return
+    }
+
+    // Start transaction
     tx, err := h.DB.Begin()
     if err != nil {
-        http.Error(w, "Database error", http.StatusInternalServerError)
+        http.Error(w, fmt.Sprintf("Database error: %v", err), http.StatusInternalServerError)
         return
     }
     defer tx.Rollback()
 
-    // Update all preferences using the transaction
+    // Process each preference
     for _, pref := range preferences {
-        // Use CreatePreference with the transaction
         _, err := h.DB.CreatePreference(&pref, tx)
         if err != nil {
-            http.Error(w, fmt.Sprintf("Error updating preferences: %v", err), http.StatusInternalServerError)
+            http.Error(w, fmt.Sprintf("Error updating preference: %v", err), http.StatusInternalServerError)
             return
         }
     }
 
+    // Commit transaction
     if err := tx.Commit(); err != nil {
-        http.Error(w, "Error committing transaction", http.StatusInternalServerError)
+        http.Error(w, fmt.Sprintf("Error committing transaction: %v", err), http.StatusInternalServerError)
         return
     }
 
-    // After successful commit, get all updated preferences
-    clientID := preferences[0].ClientID // Assuming all preferences have same clientID
+    // Get updated preferences
+    clientID := preferences[0].ClientID // All preferences should have same clientID
     updatedPrefs, err := h.DB.GetAllPreferencesForClient(clientID)
     if err != nil {
-        http.Error(w, "Error fetching updated preferences", http.StatusInternalServerError)
+        http.Error(w, fmt.Sprintf("Error fetching updated preferences: %v", err), http.StatusInternalServerError)
         return
     }
 
+    // Return updated preferences
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(updatedPrefs)
 }
