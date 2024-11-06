@@ -13,6 +13,12 @@ type DB struct {
 	*sql.DB
 }
 
+type Execer interface {
+    Exec(query string, args ...interface{}) (sql.Result, error)
+    QueryRow(query string, args ...interface{}) *sql.Row
+}
+
+
 func NewDB(dsn string) (*DB, error) {
 	// Add parseTime=true parameter safely
 	if !strings.Contains(dsn, "?") {
@@ -123,11 +129,15 @@ func (db *DB) GetAllPreferencesForClient(clientID string) ([]models.UserPreferen
 }
 
 // GetPreferenceByDeviceAndClientID retrieves a specific preference
-func (db *DB) GetPreferenceByDeviceAndClientID(deviceID, clientID string) (*models.UserPreference, error) {
+func (db *DB) GetPreferenceByDeviceAndClientID(deviceID, clientID string, execer Execer) (*models.UserPreference, error) {
+    if execer == nil {
+        execer = db.DB
+    }
+
     var pref models.UserPreference
     var createdAt, updatedAt sql.NullTime
 
-    err := db.QueryRow(`
+    err := execer.QueryRow(`
         SELECT id, device_id, client_id, display_name, is_hidden, sort_order, created_at, updated_at
         FROM user_preferences
         WHERE device_id = ? AND client_id = ?
@@ -159,41 +169,38 @@ func (db *DB) GetPreferenceByDeviceAndClientID(deviceID, clientID string) (*mode
     return &pref, nil
 }
 
+
 // CreatePreference creates a new preference
-func (db *DB) CreatePreference(pref *models.PreferenceCreate) (*models.UserPreference, error) {
-    // First check if preference exists
-    existing, err := db.GetPreferenceByDeviceAndClientID(pref.DeviceID, pref.ClientID)
-    if err != nil {
-        return nil, fmt.Errorf("error checking existing preference: %w", err)
+func (db *DB) CreatePreference(pref *models.PreferenceCreate, execer Execer) (*models.UserPreference, error) {
+    if execer == nil {
+        execer = db.DB
     }
-
-    if existing != nil {
-        // If exists, update it
-        update := &models.PreferenceUpdate{
-            DisplayName: &pref.DisplayName,
-            IsHidden: &pref.IsHidden,
-            SortOrder: &pref.SortOrder,
-        }
-        return db.UpdatePreferenceByDeviceAndClientID(pref.DeviceID, pref.ClientID, update)
-    }
-
-    // If doesn't exist, create new
-    _, err = db.Exec(`
+    
+    // Use UPSERT to handle insert or update in one query
+    _, err := execer.Exec(`
         INSERT INTO user_preferences 
         (device_id, client_id, display_name, is_hidden, sort_order)
         VALUES (?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+            display_name = VALUES(display_name),
+            is_hidden = VALUES(is_hidden),
+            sort_order = VALUES(sort_order)
     `, pref.DeviceID, pref.ClientID, pref.DisplayName, pref.IsHidden, pref.SortOrder)
     if err != nil {
-        return nil, fmt.Errorf("error creating preference: %w", err)
+        return nil, fmt.Errorf("error creating/updating preference: %w", err)
     }
-    fmt.Printf("Created preference: device_id=%s, client_id=%s\n", pref.DeviceID, pref.ClientID)
+    fmt.Printf("Created/Updated preference: device_id=%s, client_id=%s\n", pref.DeviceID, pref.ClientID)
 
-    // Return the newly created preference
-    return db.GetPreferenceByDeviceAndClientID(pref.DeviceID, pref.ClientID)
+    // Return the newly created or updated preference
+    return db.GetPreferenceByDeviceAndClientID(pref.DeviceID, pref.ClientID, execer)
+
 }
 
 // UpdatePreferenceByDeviceAndClientID updates an existing preference
-func (db *DB) UpdatePreferenceByDeviceAndClientID(deviceID, clientID string, updates *models.PreferenceUpdate) (*models.UserPreference, error) {
+func (db *DB) UpdatePreferenceByDeviceAndClientID(deviceID, clientID string, updates *models.PreferenceUpdate, execer Execer) (*models.UserPreference, error) {
+    if execer == nil {
+        execer = db.DB
+    }
     query := "UPDATE user_preferences SET updated_at = NOW()"
     args := []interface{}{}
 
@@ -213,7 +220,7 @@ func (db *DB) UpdatePreferenceByDeviceAndClientID(deviceID, clientID string, upd
     query += " WHERE device_id = ? AND client_id = ?"
     args = append(args, deviceID, clientID)
 
-    result, err := db.Exec(query, args...)
+    result, err := execer.Exec(query, args...)
     if err != nil {
         return nil, fmt.Errorf("error updating preference: %w", err)
     }
@@ -228,7 +235,8 @@ func (db *DB) UpdatePreferenceByDeviceAndClientID(deviceID, clientID string, upd
     }
     fmt.Printf("Updated preference: device_id=%s, client_id=%s\n", deviceID, clientID)
 
-    return db.GetPreferenceByDeviceAndClientID(deviceID, clientID)
+    // Pass execer to GetPreferenceByDeviceAndClientID
+    return db.GetPreferenceByDeviceAndClientID(deviceID, clientID, execer)
 }
 
 // DeletePreference deletes a preference

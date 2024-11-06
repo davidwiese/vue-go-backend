@@ -127,7 +127,7 @@ func (h *Handler) getPreference(w http.ResponseWriter, r *http.Request, deviceID
         clientID = "default"
     }
 
-    pref, err := h.DB.GetPreferenceByDeviceAndClientID(deviceID, clientID)
+    pref, err := h.DB.GetPreferenceByDeviceAndClientID(deviceID, clientID, nil)
     if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return
@@ -158,7 +158,7 @@ func (h *Handler) createPreference(w http.ResponseWriter, r *http.Request) {
         newPref.ClientID = "default"
     }
 
-    pref, err := h.DB.CreatePreference(&newPref)
+    pref, err := h.DB.CreatePreference(&newPref, nil)  // Pass nil as execer
     if err != nil {
         fmt.Printf("Error creating preference: %v\n", err)
         http.Error(w, fmt.Sprintf("Error creating preference: %v", err), http.StatusInternalServerError)
@@ -166,12 +166,12 @@ func (h *Handler) createPreference(w http.ResponseWriter, r *http.Request) {
     }
 
     fmt.Printf("Successfully created/updated preference: %+v\n", pref)
-    fmt.Printf("Preference created: %+v\n", pref)
     
     w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(http.StatusCreated)
     json.NewEncoder(w).Encode(pref)
 }
+
 
 // updatePreference updates an existing preference
 func (h *Handler) updatePreference(w http.ResponseWriter, r *http.Request, deviceID string) {
@@ -187,7 +187,7 @@ func (h *Handler) updatePreference(w http.ResponseWriter, r *http.Request, devic
     }
 
     // Try to get existing preference first
-    existing, err := h.DB.GetPreferenceByDeviceAndClientID(deviceID, clientID)
+    existing, err := h.DB.GetPreferenceByDeviceAndClientID(deviceID, clientID, nil)
     if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return
@@ -198,7 +198,7 @@ func (h *Handler) updatePreference(w http.ResponseWriter, r *http.Request, devic
         return
     }
 
-    pref, err := h.DB.UpdatePreferenceByDeviceAndClientID(deviceID, clientID, &updates)
+    pref, err := h.DB.UpdatePreferenceByDeviceAndClientID(deviceID, clientID, &updates, nil)
     if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return
@@ -208,6 +208,7 @@ func (h *Handler) updatePreference(w http.ResponseWriter, r *http.Request, devic
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(pref)
 }
+
 
 // deletePreference deletes a preference
 func (h *Handler) deletePreference(w http.ResponseWriter, r *http.Request, deviceID string) {
@@ -255,4 +256,47 @@ func (h *Handler) PreferencesHandler(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+// Batch update preferences
+func (h *Handler) BatchUpdatePreferences(w http.ResponseWriter, r *http.Request) {
+    var preferences []models.PreferenceCreate
+    if err := json.NewDecoder(r.Body).Decode(&preferences); err != nil {
+        http.Error(w, "Invalid request body", http.StatusBadRequest)
+        return
+    }
+
+    // Use a transaction to update all preferences
+    tx, err := h.DB.Begin()
+    if err != nil {
+        http.Error(w, "Database error", http.StatusInternalServerError)
+        return
+    }
+    defer tx.Rollback()
+
+    // Update all preferences using the transaction
+    for _, pref := range preferences {
+        // Use CreatePreference with the transaction
+        _, err := h.DB.CreatePreference(&pref, tx)
+        if err != nil {
+            http.Error(w, fmt.Sprintf("Error updating preferences: %v", err), http.StatusInternalServerError)
+            return
+        }
+    }
+
+    if err := tx.Commit(); err != nil {
+        http.Error(w, "Error committing transaction", http.StatusInternalServerError)
+        return
+    }
+
+    // After successful commit, get all updated preferences
+    clientID := preferences[0].ClientID // Assuming all preferences have same clientID
+    updatedPrefs, err := h.DB.GetAllPreferencesForClient(clientID)
+    if err != nil {
+        http.Error(w, "Error fetching updated preferences", http.StatusInternalServerError)
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(updatedPrefs)
 }
