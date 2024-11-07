@@ -306,3 +306,29 @@ func (h *Handler) BatchUpdatePreferences(w http.ResponseWriter, r *http.Request)
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(updatedPrefs)
 }
+
+// GenerateReportHandler handles report generation requests
+func (h *Handler) GenerateReportHandler(w http.ResponseWriter, r *http.Request) {
+    if r.Method != http.MethodPost {
+        http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+        return
+    }
+
+    // Parse request body
+    var req models.ReportRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
+        return
+    }
+
+    // Call OneStepGPS API to generate report
+    response, err := h.GPSClient.GenerateReport(&req.ReportSpec)
+    if err != nil {
+        http.Error(w, fmt.Sprintf("Error generating report: %v", err), http.StatusInternalServerError)
+        return
+    }
+
+    // Return the response
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(response)
+}
