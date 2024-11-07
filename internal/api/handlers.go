@@ -1,8 +1,10 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -309,24 +311,48 @@ func (h *Handler) BatchUpdatePreferences(w http.ResponseWriter, r *http.Request)
 
 // GenerateReportHandler handles report generation requests
 func (h *Handler) GenerateReportHandler(w http.ResponseWriter, r *http.Request) {
+    fmt.Println("GenerateReportHandler called") // Debug log
+    
     if r.Method != http.MethodPost {
+        fmt.Printf("Invalid method: %s\n", r.Method) // Debug log
         http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
         return
     }
 
+    // Log request headers
+    fmt.Println("Request Headers:", r.Header)
+
+    // Read and log request body
+    body, err := io.ReadAll(r.Body)
+    if err != nil {
+        fmt.Printf("Error reading body: %v\n", err) // Debug log
+        http.Error(w, "Error reading request body", http.StatusBadRequest)
+        return
+    }
+    fmt.Printf("Request Body: %s\n", string(body)) // Debug log
+    
+    // Restore the body for later use
+    r.Body = io.NopCloser(bytes.NewBuffer(body))
+
     // Parse request body
     var req models.ReportRequest
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        fmt.Printf("Error decoding request body: %v\n", err) // Debug log
         http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
         return
     }
 
+    fmt.Printf("Parsed request: %+v\n", req) // Debug log
+
     // Call OneStepGPS API to generate report
     response, err := h.GPSClient.GenerateReport(&req.ReportSpec)
     if err != nil {
+        fmt.Printf("Error generating report: %v\n", err) // Debug log
         http.Error(w, fmt.Sprintf("Error generating report: %v", err), http.StatusInternalServerError)
         return
     }
+
+    fmt.Printf("Report generated successfully: %+v\n", response) // Debug log
 
     // Return the response
     w.Header().Set("Content-Type", "application/json")
