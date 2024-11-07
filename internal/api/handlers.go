@@ -154,17 +154,6 @@ func (h *Handler) createPreference(w http.ResponseWriter, r *http.Request) {
 
     fmt.Printf("Received preference create request: %+v\n", newPref)
 
-    // Set default values if not provided
-    if newPref.SpeedUnit == "" {
-        newPref.SpeedUnit = "mph"
-    }
-    if newPref.DistanceUnit == "" {
-        newPref.DistanceUnit = "miles"
-    }
-    if newPref.TemperatureUnit == "" {
-        newPref.TemperatureUnit = "F"
-    }
-
     if newPref.ClientID == "" {
         newPref.ClientID = "default"
     }
@@ -194,20 +183,6 @@ func (h *Handler) updatePreference(w http.ResponseWriter, r *http.Request, devic
     var updates models.PreferenceUpdate
     if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
         http.Error(w, "Invalid request body", http.StatusBadRequest)
-        return
-    }
-
-    // Validate the new unit values if they are being updated
-    if updates.SpeedUnit != nil && !isValidSpeedUnit(*updates.SpeedUnit) {
-        http.Error(w, "Invalid speed unit", http.StatusBadRequest)
-        return
-    }
-    if updates.DistanceUnit != nil && !isValidDistanceUnit(*updates.DistanceUnit) {
-        http.Error(w, "Invalid distance unit", http.StatusBadRequest)
-        return
-    }
-    if updates.TemperatureUnit != nil && !isValidTemperatureUnit(*updates.TemperatureUnit) {
-        http.Error(w, "Invalid temperature unit", http.StatusBadRequest)
         return
     }
 
@@ -306,22 +281,6 @@ func (h *Handler) BatchUpdatePreferences(w http.ResponseWriter, r *http.Request)
 
     // Process each preference
     for _, pref := range preferences {
-        // Set default values if not provided
-        if pref.SpeedUnit == "" {
-            pref.SpeedUnit = "mph"
-        }
-        if pref.DistanceUnit == "" {
-            pref.DistanceUnit = "miles"
-        }
-        if pref.TemperatureUnit == "" {
-            pref.TemperatureUnit = "F"
-        }
-        // Validate units
-        if !isValidSpeedUnit(pref.SpeedUnit) || !isValidDistanceUnit(pref.DistanceUnit) || !isValidTemperatureUnit(pref.TemperatureUnit) {
-            http.Error(w, "Invalid unit preference in batch update", http.StatusBadRequest)
-            return
-        }
-
         _, err := h.DB.CreatePreference(&pref, tx)
         if err != nil {
             http.Error(w, fmt.Sprintf("Error updating preference: %v", err), http.StatusInternalServerError)
@@ -346,17 +305,4 @@ func (h *Handler) BatchUpdatePreferences(w http.ResponseWriter, r *http.Request)
     // Return updated preferences
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(updatedPrefs)
-}
-
-// Helper functions to validate units
-func isValidSpeedUnit(unit string) bool {
-    return unit == "mph" || unit == "km/h"
-}
-
-func isValidDistanceUnit(unit string) bool {
-    return unit == "miles" || unit == "kilometers"
-}
-
-func isValidTemperatureUnit(unit string) bool {
-    return unit == "F" || unit == "C"
 }
