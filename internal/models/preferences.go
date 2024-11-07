@@ -11,7 +11,6 @@ type UserPreference struct {
     SortOrder       int       `json:"sort_order"`
     SpeedUnit       string    `json:"speed_unit"`
     DistanceUnit    string    `json:"distance_unit"`
-    TemperatureUnit string    `json:"temperature_unit"`
     CreatedAt       time.Time `json:"created_at"`
     UpdatedAt       time.Time `json:"updated_at"`
 }
@@ -25,7 +24,6 @@ type PreferenceCreate struct {
     SortOrder       int    `json:"sort_order"`
     SpeedUnit       string `json:"speed_unit,omitempty"`
     DistanceUnit    string `json:"distance_unit,omitempty"`
-    TemperatureUnit string `json:"temperature_unit,omitempty"`
 }
 
 // PreferenceUpdate represents the data that can be updated
@@ -38,5 +36,4 @@ type PreferenceUpdate struct {
 	SortOrder       *int    `json:"sort_order,omitempty"`
     SpeedUnit       *string `json:"speed_unit,omitempty"`
     DistanceUnit    *string `json:"distance_unit,omitempty"`
-    TemperatureUnit *string `json:"temperature_unit,omitempty"`
 }
