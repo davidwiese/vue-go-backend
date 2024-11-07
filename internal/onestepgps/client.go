@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"time"
@@ -19,6 +20,13 @@ const (
 type Client struct {
     apiKey     string
     httpClient *http.Client
+}
+
+// ReportStatus represents the status of a generated report
+type ReportStatus struct {
+    Status       string                 `json:"status"`
+    Progress     map[string]interface{} `json:"progress"`
+    DownloadURL  string                 `json:"download_url,omitempty"`
 }
 
 // NewClient creates a new OneStepGPS API client
@@ -113,4 +121,77 @@ func (c *Client) GenerateReport(spec *models.ReportSpec) (*models.ReportResponse
     }
 
     return &reportResp, nil
+}
+
+// GetReportStatus checks the status of a generated report
+func (c *Client) GetReportStatus(reportID string) (*ReportStatus, error) {
+    url := fmt.Sprintf("%s/report/%s", baseURL, reportID)
+    
+    req, err := http.NewRequest("GET", url, nil)
+    if err != nil {
+        return nil, fmt.Errorf("error creating request: %w", err)
+    }
+
+    req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.apiKey))
+
+    resp, err := c.httpClient.Do(req)
+    if err != nil {
+        return nil, fmt.Errorf("error getting report status: %w", err)
+    }
+    defer resp.Body.Close()
+
+    if resp.StatusCode != http.StatusOK {
+        return nil, fmt.Errorf("API request failed with status: %d", resp.StatusCode)
+    }
+
+    var status ReportStatus
+    if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
+        return nil, fmt.Errorf("error decoding response: %w", err)
+    }
+
+    return &status, nil
+}
+
+// DownloadReport downloads the generated report
+func (c *Client) DownloadReport(reportID string) ([]byte, string, error) {
+    // First get the report status to check if it's ready
+    status, err := c.GetReportStatus(reportID)
+    if err != nil {
+        return nil, "", fmt.Errorf("error getting report status: %w", err)
+    }
+
+    if status.Status != "completed" {
+        return nil, "", fmt.Errorf("report is not ready yet: %s", status.Status)
+    }
+
+    // Download the report
+    url := fmt.Sprintf("%s/report/%s/download", baseURL, reportID)
+    
+    req, err := http.NewRequest("GET", url, nil)
+    if err != nil {
+        return nil, "", fmt.Errorf("error creating request: %w", err)
+    }
+
+    req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.apiKey))
+
+    resp, err := c.httpClient.Do(req)
+    if err != nil {
+        return nil, "", fmt.Errorf("error downloading report: %w", err)
+    }
+    defer resp.Body.Close()
+
+    if resp.StatusCode != http.StatusOK {
+        return nil, "", fmt.Errorf("download request failed with status: %d", resp.StatusCode)
+    }
+
+    // Read the content type
+    contentType := resp.Header.Get("Content-Type")
+
+    // Read the entire response body
+    content, err := io.ReadAll(resp.Body)
+    if err != nil {
+        return nil, "", fmt.Errorf("error reading report content: %w", err)
+    }
+
+    return content, contentType, nil
 }
