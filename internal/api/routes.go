@@ -17,6 +17,9 @@ func (h *Handler) SetupRoutes() {
     http.Handle("/preferences/batch", withCORS(http.HandlerFunc(h.BatchUpdatePreferences)))
     http.Handle("/preferences", withCORS(http.HandlerFunc(h.PreferencesHandler)))
     http.Handle("/preferences/", withCORS(http.HandlerFunc(h.PreferencesHandler)))
+
+    // Report routes with CORS middleware
+    http.Handle("/report/generate", withCORS(http.HandlerFunc(h.GenerateReportHandler)))
     
     // Debug endpoint (consider removing in production)
     http.HandleFunc("/debug", h.debugHandler)
