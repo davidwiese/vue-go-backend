@@ -71,6 +71,7 @@ func (db *DB) CreateTableIfNotExists() error {
             sort_order INT,
             speed_unit VARCHAR(10) DEFAULT 'mph',
             distance_unit VARCHAR(10) DEFAULT 'miles',
+            temperature_unit VARCHAR(2) DEFAULT 'F',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             UNIQUE KEY unique_device_client (device_id, client_id)
@@ -82,7 +83,7 @@ func (db *DB) CreateTableIfNotExists() error {
 
 func (db *DB) GetAllPreferencesForClient(clientID string) ([]models.UserPreference, error) {
     query := `
-        SELECT id, device_id, client_id, display_name, is_hidden, sort_order,speed_unit, distance_unit, created_at, updated_at
+        SELECT id, device_id, client_id, display_name, is_hidden, sort_order,speed_unit, distance_unit, temperature_unit, created_at, updated_at
         FROM user_preferences
         WHERE client_id = ?
         ORDER BY sort_order ASC
@@ -108,6 +109,7 @@ func (db *DB) GetAllPreferencesForClient(clientID string) ([]models.UserPreferen
             &pref.SortOrder,
             &pref.SpeedUnit,
             &pref.DistanceUnit,
+            &pref.TemperatureUnit,
             &createdAt,
             &updatedAt,
         )
@@ -142,7 +144,7 @@ func (db *DB) GetPreferenceByDeviceAndClientID(deviceID, clientID string, execer
     var createdAt, updatedAt sql.NullTime
 
     err := execer.QueryRow(`
-        SELECT id, device_id, client_id, display_name, is_hidden, sort_order,speed_unit, distance_unit, created_at, updated_at
+        SELECT id, device_id, client_id, display_name, is_hidden, sort_order,speed_unit, distance_unit, temperature_unit, created_at, updated_at
         FROM user_preferences
         WHERE device_id = ? AND client_id = ?
     `, deviceID, clientID).Scan(
@@ -154,6 +156,7 @@ func (db *DB) GetPreferenceByDeviceAndClientID(deviceID, clientID string, execer
         &pref.SortOrder,
         &pref.SpeedUnit,
         &pref.DistanceUnit,
+        &pref.TemperatureUnit,
         &createdAt,
         &updatedAt,
     )
@@ -185,15 +188,16 @@ func (db *DB) CreatePreference(pref *models.PreferenceCreate, execer Execer) (*m
     // Use UPSERT to handle insert or update in one query
     _, err := execer.Exec(`
         INSERT INTO user_preferences 
-        (device_id, client_id, display_name, is_hidden, sort_order, speed_unit, distance_unit)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        (device_id, client_id, display_name, is_hidden, sort_order, speed_unit, distance_unit, temperature_unit)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
             display_name = VALUES(display_name),
             is_hidden = VALUES(is_hidden),
             sort_order = VALUES(sort_order),
             speed_unit = VALUES(speed_unit),
             distance_unit = VALUES(distance_unit),
-    `, pref.DeviceID, pref.ClientID, pref.DisplayName, pref.IsHidden, pref.SortOrder, pref.SpeedUnit, pref.DistanceUnit)
+            temperature_unit = VALUES(temperature_unit)
+    `, pref.DeviceID, pref.ClientID, pref.DisplayName, pref.IsHidden, pref.SortOrder, pref.SpeedUnit, pref.DistanceUnit, pref.TemperatureUnit)
     if err != nil {
         return nil, fmt.Errorf("error creating/updating preference: %w", err)
     }
@@ -233,6 +237,11 @@ func (db *DB) UpdatePreferenceByDeviceAndClientID(deviceID, clientID string, upd
     if updates.DistanceUnit != nil {
         query += ", distance_unit = ?"
         args = append(args, *updates.DistanceUnit)
+    }
+
+    if updates.TemperatureUnit != nil {
+        query += ", temperature_unit = ?"
+        args = append(args, *updates.TemperatureUnit)
     }
 
     query += " WHERE device_id = ? AND client_id = ?"
