@@ -193,7 +193,7 @@ func (db *DB) CreatePreference(pref *models.PreferenceCreate, execer Execer) (*m
         ON DUPLICATE KEY UPDATE
             display_name = VALUES(display_name),
             is_hidden = VALUES(is_hidden),
-            sort_order = VALUES(sort_order),
+            sort_order = VALUES(sort_order)
             speed_unit = VALUES(speed_unit),
             distance_unit = VALUES(distance_unit),
             temperature_unit = VALUES(temperature_unit)
