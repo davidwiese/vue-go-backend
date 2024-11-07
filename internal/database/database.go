@@ -69,9 +69,6 @@ func (db *DB) CreateTableIfNotExists() error {
             display_name VARCHAR(255),
             is_hidden BOOLEAN DEFAULT false,
             sort_order INT,
-            speed_unit VARCHAR(10) DEFAULT 'mph',
-            distance_unit VARCHAR(10) DEFAULT 'miles',
-            temperature_unit VARCHAR(2) DEFAULT 'F',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             UNIQUE KEY unique_device_client (device_id, client_id)
