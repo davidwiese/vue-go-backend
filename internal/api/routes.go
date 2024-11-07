@@ -20,6 +20,8 @@ func (h *Handler) SetupRoutes() {
 
     // Report routes with CORS middleware
     http.Handle("/report/generate", withCORS(http.HandlerFunc(h.GenerateReportHandler)))
+    http.Handle("/report/status/", withCORS(http.HandlerFunc(h.GetReportStatusHandler)))
+    http.Handle("/report/download/", withCORS(http.HandlerFunc(h.DownloadReportHandler)))
     
     // Debug endpoint (consider removing in production)
     http.HandleFunc("/debug", h.debugHandler)
