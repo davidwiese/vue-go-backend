@@ -1,6 +1,7 @@
 package onestepgps
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -66,4 +67,50 @@ func (c *Client) GetVehicleUpdates(interval time.Duration, updates chan<- []mode
         }
         updates <- vehicles
     }
+}
+
+// GenerateReport sends a report generation request to OneStepGPS API
+func (c *Client) GenerateReport(spec *models.ReportSpec) (*models.ReportResponse, error) {
+    url := fmt.Sprintf("%s/report/generate", baseURL)
+    
+    // Create request body
+    reqBody := models.ReportRequest{
+        ReportSpec: *spec,
+    }
+    
+    // Convert request to JSON
+    jsonData, err := json.Marshal(reqBody)
+    if err != nil {
+        return nil, fmt.Errorf("error marshaling request: %w", err)
+    }
+
+    // Create request
+    req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+    if err != nil {
+        return nil, fmt.Errorf("error creating request: %w", err)
+    }
+
+    // Set headers
+    req.Header.Set("Content-Type", "application/json")
+    req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.apiKey))
+
+    // Send request
+    resp, err := c.httpClient.Do(req)
+    if err != nil {
+        return nil, fmt.Errorf("error sending request: %w", err)
+    }
+    defer resp.Body.Close()
+
+    // Check response status
+    if resp.StatusCode != http.StatusOK {
+        return nil, fmt.Errorf("API request failed with status: %d", resp.StatusCode)
+    }
+
+    // Decode response
+    var reportResp models.ReportResponse
+    if err := json.NewDecoder(resp.Body).Decode(&reportResp); err != nil {
+        return nil, fmt.Errorf("error decoding response: %w", err)
+    }
+
+    return &reportResp, nil
 }
