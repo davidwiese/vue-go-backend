@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -19,10 +20,13 @@ func (h *Handler) SetupRoutes() {
     http.Handle("/preferences/", withCORS(http.HandlerFunc(h.PreferencesHandler)))
 
     // Report routes with CORS middleware
+    fmt.Println("Registering report route: /report/generate")
     http.Handle("/report/generate", withCORS(http.HandlerFunc(h.GenerateReportHandler)))
     
     // Debug endpoint (consider removing in production)
     http.HandleFunc("/debug", h.debugHandler)
+
+    fmt.Println("Routes setup completed")
 }
 
 // getAllowedOrigins returns the list of allowed origins from environment variables

@@ -78,32 +78,28 @@ func (c *Client) GetVehicleUpdates(interval time.Duration, updates chan<- []mode
 }
 
 // GenerateReport sends a report generation request to OneStepGPS API
-func (c *Client) GenerateReport(spec *models.ReportSpec) (*models.ReportResponse, error) {
+// GenerateReport sends a report generation request to OneStepGPS API
+func (c *Client) GenerateReport(req *models.ReportRequest) (*models.ReportResponse, error) {
     url := fmt.Sprintf("%s/report/generate", baseURL)
     
-    // Create request body
-    reqBody := models.ReportRequest{
-        ReportSpec: *spec,
-    }
-    
     // Convert request to JSON
-    jsonData, err := json.Marshal(reqBody)
+    jsonData, err := json.Marshal(req)
     if err != nil {
         return nil, fmt.Errorf("error marshaling request: %w", err)
     }
 
     // Create request
-    req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+    request, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
     if err != nil {
         return nil, fmt.Errorf("error creating request: %w", err)
     }
 
     // Set headers
-    req.Header.Set("Content-Type", "application/json")
-    req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.apiKey))
+    request.Header.Set("Content-Type", "application/json")
+    request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.apiKey))
 
     // Send request
-    resp, err := c.httpClient.Do(req)
+    resp, err := c.httpClient.Do(request)
     if err != nil {
         return nil, fmt.Errorf("error sending request: %w", err)
     }
@@ -127,8 +123,8 @@ func (c *Client) GenerateReport(spec *models.ReportSpec) (*models.ReportResponse
 func (c *Client) GetReportStatus(reportID string) (*models.ReportStatus, error) {
     fmt.Printf("Getting status for report: %s\n", reportID)
 
-    // Try accessing the report status using the same base endpoint
-    url := fmt.Sprintf("%s/report/%s?api-key=%s", baseURL, reportID, c.apiKey)
+    // Use the correct endpoint for report status
+    url := fmt.Sprintf("%s/report-generated/%s", baseURL, reportID)
     fmt.Printf("Making request to: %s\n", url)
     
     req, err := http.NewRequest("GET", url, nil)
@@ -166,7 +162,7 @@ func (c *Client) GetReportStatus(reportID string) (*models.ReportStatus, error) 
 
 // DownloadReport downloads the generated report
 func (c *Client) DownloadReport(reportID string) ([]byte, string, error) {
-    url := fmt.Sprintf("%s/report/%s/download?api-key=%s", baseURL, reportID, c.apiKey)
+    url := fmt.Sprintf("%s/report-generated/export/%s?file_type=pdf", baseURL, reportID)
     fmt.Printf("Attempting to download report from: %s\n", url)
 
     req, err := http.NewRequest("GET", url, nil)
