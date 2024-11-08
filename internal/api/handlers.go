@@ -13,19 +13,29 @@ import (
 	"github.com/davidwiese/fleet-tracker-backend/internal/onestepgps"
 )
 
+const (
+    baseURL = "https://track.onestepgps.com/v3/api/public"
+)
+
 // Handler struct to hold dependencies
 type Handler struct {
     DB               *database.DB
-    BroadcastChannel chan []models.Vehicle  // Update this line
+    BroadcastChannel chan []models.Vehicle
     GPSClient        *onestepgps.Client
+    config           HandlerConfig
+}
+
+type HandlerConfig struct {
+    OneStepGPSAPIKey string
 }
 
 // NewHandler creates a new Handler instance
-func NewHandler(db *database.DB, broadcastChannel chan []models.Vehicle, gpsClient *onestepgps.Client) *Handler {
+func NewHandler(db *database.DB, broadcastChannel chan []models.Vehicle, gpsClient *onestepgps.Client, config HandlerConfig) *Handler {
     return &Handler{
         DB:               db,
         BroadcastChannel: broadcastChannel,
         GPSClient:        gpsClient,
+        config:           config,
     }
 }
 
@@ -311,73 +321,89 @@ func (h *Handler) BatchUpdatePreferences(w http.ResponseWriter, r *http.Request)
 
 // GenerateReportHandler handles report generation requests
 func (h *Handler) GenerateReportHandler(w http.ResponseWriter, r *http.Request) {
-    fmt.Println("GenerateReportHandler called") // Debug log
-    
     if r.Method != http.MethodPost {
-        fmt.Printf("Invalid method: %s\n", r.Method) // Debug log
         http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
         return
     }
 
-    // Log request headers
-    fmt.Println("Request Headers:", r.Header)
-
-    // Read and log request body
-    body, err := io.ReadAll(r.Body)
-    if err != nil {
-        fmt.Printf("Error reading body: %v\n", err) // Debug log
-        http.Error(w, "Error reading request body", http.StatusBadRequest)
-        return
-    }
-    fmt.Printf("Request Body: %s\n", string(body)) // Debug log
-    
-    // Restore the body for later use
-    r.Body = io.NopCloser(bytes.NewBuffer(body))
-
     // Parse request body
     var req models.ReportRequest
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-        fmt.Printf("Error decoding request body: %v\n", err) // Debug log
         http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
         return
     }
 
-    fmt.Printf("Parsed request: %+v\n", req) // Debug log
-
-    // Call OneStepGPS API to generate report
-    response, err := h.GPSClient.GenerateReport(&req.ReportSpec)
+    // Forward request to OneStepGPS
+    url := fmt.Sprintf("%s/report/generate", baseURL)
+    jsonData, err := json.Marshal(req)
     if err != nil {
-        fmt.Printf("Error generating report: %v\n", err) // Debug log
-        http.Error(w, fmt.Sprintf("Error generating report: %v", err), http.StatusInternalServerError)
+        http.Error(w, "Error preparing request", http.StatusInternalServerError)
         return
     }
 
-    fmt.Printf("Report generated successfully: %+v\n", response) // Debug log
+    request, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+    if err != nil {
+        http.Error(w, "Error creating request", http.StatusInternalServerError)
+        return
+    }
 
-    // Return the response
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(response)
+    request.Header.Set("Content-Type", "application/json")
+    request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", h.config.OneStepGPSAPIKey))
+
+    resp, err := http.DefaultClient.Do(request)
+    if err != nil {
+        http.Error(w, fmt.Sprintf("Error generating report: %v", err), http.StatusInternalServerError)
+        return
+    }
+    defer resp.Body.Close()
+
+    // Copy the response headers
+    for key, values := range resp.Header {
+        for _, value := range values {
+            w.Header().Add(key, value)
+        }
+    }
+
+    // Set the content type for PDF
+    w.Header().Set("Content-Type", "application/pdf")
+    w.Header().Set("Content-Disposition", "attachment; filename=report.pdf")
+
+    // Copy the response body to our response
+    if _, err := io.Copy(w, resp.Body); err != nil {
+        http.Error(w, fmt.Sprintf("Error sending report: %v", err), http.StatusInternalServerError)
+        return
+    }
 }
+
 
 // GetReportStatusHandler handles requests to check report status
 func (h *Handler) GetReportStatusHandler(w http.ResponseWriter, r *http.Request) {
+    fmt.Println("GetReportStatusHandler called") // Debug log
+
     if r.Method != http.MethodGet {
+        fmt.Printf("Invalid method: %s\n", r.Method) // Debug log
         http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
         return
     }
 
     // Extract report ID from the URL
     reportID := strings.TrimPrefix(r.URL.Path, "/report/status/")
+    fmt.Printf("Checking status for report ID: %s\n", reportID) // Debug log
+
     if reportID == "" {
+        fmt.Println("Report ID is empty") // Debug log
         http.Error(w, "Report ID is required", http.StatusBadRequest)
         return
     }
 
     status, err := h.GPSClient.GetReportStatus(reportID)
     if err != nil {
+        fmt.Printf("Error getting report status: %v\n", err) // Debug log
         http.Error(w, fmt.Sprintf("Error getting report status: %v", err), http.StatusInternalServerError)
         return
     }
+
+    fmt.Printf("Report status retrieved successfully: %+v\n", status) // Debug log
 
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(status)

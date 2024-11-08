@@ -25,3 +25,11 @@ type ReportResponse struct {
     ReportScheduledID string                 `json:"report_scheduled_id"`
     CustomerID       string                 `json:"customer_id"`
 }
+
+// ReportStatus represents the status of a report
+type ReportStatus struct {
+    Status     string                 `json:"status"`
+    Progress   map[string]interface{} `json:"progress"`
+    Error      string                 `json:"error"`
+    OutputPath string                 `json:"output_file_path,omitempty"`
+}

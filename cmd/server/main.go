@@ -45,7 +45,14 @@ func main() {
   go hub.Run()
 
   // Create API handler
-  handler := api.NewHandler(db, hub.Broadcast, gpsClient)
+  handler := api.NewHandler(
+    db,
+    hub.Broadcast,
+    gpsClient,
+    api.HandlerConfig{
+        OneStepGPSAPIKey: cfg.APIConfig.GPSApiKey,
+    },
+)
 
   // Setup routes
   handler.SetupRoutes()
