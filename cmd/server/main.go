@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -45,10 +46,20 @@ func main() {
   go hub.Run()
 
   // Create API handler
-  handler := api.NewHandler(db, hub.Broadcast, gpsClient)
+  handler := api.NewHandler(
+    db,
+    hub.Broadcast,
+    gpsClient,
+    api.HandlerConfig{
+        OneStepGPSAPIKey: cfg.APIConfig.GPSApiKey,
+        BaseURL:          "https://track.onestepgps.com/v3/api/public",
+    },
+)
 
   // Setup routes
+  fmt.Println("Setting up routes...")
   handler.SetupRoutes()
+  fmt.Println("Routes setup complete")
 
   // Setup WebSocket endpoint
   http.HandleFunc("/ws", hub.HandleWebSocket)
