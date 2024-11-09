@@ -57,9 +57,9 @@ func main() {
 )
 
   // Setup routes
-  fmt.Println("Setting up routes...")
+  fmt.Println("main.go: Setting up routes...")
   handler.SetupRoutes()
-  fmt.Println("Routes setup complete")
+  fmt.Println("main.go: Routes setup completed")
 
   // Setup WebSocket endpoint
   http.HandleFunc("/ws", hub.HandleWebSocket)
