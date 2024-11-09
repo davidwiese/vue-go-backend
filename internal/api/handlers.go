@@ -440,7 +440,7 @@ func (h *Handler) GenerateReportHandler(w http.ResponseWriter, r *http.Request) 
 
     // Poll for completion
     reportID := generateResponse.ReportGeneratedID
-    maxAttempts := 30
+    maxAttempts := 60
     
     for attempt := 0; attempt < maxAttempts; attempt++ {
         fmt.Printf("Checking status attempt %d/%d\n", attempt+1, maxAttempts)
