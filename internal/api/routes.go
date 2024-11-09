@@ -11,7 +11,6 @@ import (
 func (h *Handler) SetupRoutes() {
     // Vehicle routes with CORS middleware
     http.Handle("/vehicles", withCORS(http.HandlerFunc(h.VehiclesHandler)))
-    http.Handle("/vehicles/", withCORS(http.HandlerFunc(h.VehicleHandler)))
 
     // Preferences routes with CORS middleware
     // Order matters: more specific routes first

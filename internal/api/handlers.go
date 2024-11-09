@@ -66,43 +66,6 @@ func (h *Handler) getVehicles(w http.ResponseWriter, _ *http.Request) {
     json.NewEncoder(w).Encode(vehicles)
 }
 
-// VehicleHandler handles "/vehicles/{id}" endpoint
-func (h *Handler) VehicleHandler(w http.ResponseWriter, r *http.Request) {
-    // Extract the device_id from the URL path
-    deviceID := strings.TrimPrefix(r.URL.Path, "/vehicles/")
-    if deviceID == "" {
-        http.Error(w, "Invalid vehicle ID", http.StatusBadRequest)
-        return
-    }
-
-    switch r.Method {
-    case http.MethodGet:
-        h.getVehicle(w, r, deviceID)
-    default:
-        http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-    }
-}
-
-// getVehicle returns a single vehicle from OneStepGPS
-func (h *Handler) getVehicle(w http.ResponseWriter, _ *http.Request, deviceID string) {
-    // Get all vehicles and find the requested one
-    vehicles, err := h.GPSClient.GetDevices()
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
-
-    for _, vehicle := range vehicles {
-        if vehicle.DeviceID == deviceID {
-            w.Header().Set("Content-Type", "application/json")
-            json.NewEncoder(w).Encode(vehicle)
-            return
-        }
-    }
-
-    http.Error(w, "Vehicle not found", http.StatusNotFound)
-}
-
 // getAllPreferences returns all preferences
 func (h *Handler) getAllPreferences(w http.ResponseWriter, r *http.Request) {
     // Get client_id from query parameter
