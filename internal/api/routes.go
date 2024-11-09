@@ -22,9 +22,6 @@ func (h *Handler) SetupRoutes() {
     // Report routes with CORS middleware
     fmt.Println("Registering report route: /report/generate")
     http.Handle("/report/generate", withCORS(http.HandlerFunc(h.GenerateReportHandler)))
-    
-    // Debug endpoint (consider removing in production)
-    http.HandleFunc("/debug", h.debugHandler)
 
     fmt.Println("Routes setup completed")
 }

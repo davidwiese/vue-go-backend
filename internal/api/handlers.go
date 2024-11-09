@@ -103,18 +103,6 @@ func (h *Handler) getVehicle(w http.ResponseWriter, _ *http.Request, deviceID st
     http.Error(w, "Vehicle not found", http.StatusNotFound)
 }
 
-// debugHandler retrieves all vehicles (for development only)
-func (h *Handler) debugHandler(w http.ResponseWriter, r *http.Request) {
-    vehicles, err := h.GPSClient.GetDevices()
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
-
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(vehicles)
-}
-
 // getAllPreferences returns all preferences
 func (h *Handler) getAllPreferences(w http.ResponseWriter, r *http.Request) {
     // Get client_id from query parameter
@@ -513,66 +501,4 @@ func (h *Handler) GenerateReportHandler(w http.ResponseWriter, r *http.Request) 
     }
 
     http.Error(w, "Report generation timed out", http.StatusGatewayTimeout)
-}
-
-
-// GetReportStatusHandler handles requests to check report status
-func (h *Handler) GetReportStatusHandler(w http.ResponseWriter, r *http.Request) {
-    fmt.Println("GetReportStatusHandler called") // Debug log
-
-    if r.Method != http.MethodGet {
-        fmt.Printf("Invalid method: %s\n", r.Method) // Debug log
-        http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-        return
-    }
-
-    // Extract report ID from the URL
-    reportID := strings.TrimPrefix(r.URL.Path, "/report/status/")
-    fmt.Printf("Checking status for report ID: %s\n", reportID) // Debug log
-
-    if reportID == "" {
-        fmt.Println("Report ID is empty") // Debug log
-        http.Error(w, "Report ID is required", http.StatusBadRequest)
-        return
-    }
-
-    status, err := h.GPSClient.GetReportStatus(reportID)
-    if err != nil {
-        fmt.Printf("Error getting report status: %v\n", err) // Debug log
-        http.Error(w, fmt.Sprintf("Error getting report status: %v", err), http.StatusInternalServerError)
-        return
-    }
-
-    fmt.Printf("Report status retrieved successfully: %+v\n", status) // Debug log
-
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(status)
-}
-
-// DownloadReportHandler handles report download requests
-func (h *Handler) DownloadReportHandler(w http.ResponseWriter, r *http.Request) {
-    if r.Method != http.MethodGet {
-        http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-        return
-    }
-
-    // Extract report ID from the URL
-    reportID := strings.TrimPrefix(r.URL.Path, "/report/download/")
-    if reportID == "" {
-        http.Error(w, "Report ID is required", http.StatusBadRequest)
-        return
-    }
-
-    content, contentType, err := h.GPSClient.DownloadReport(reportID)
-    if err != nil {
-        http.Error(w, fmt.Sprintf("Error downloading report: %v", err), http.StatusInternalServerError)
-        return
-    }
-
-    // Set appropriate headers
-    w.Header().Set("Content-Type", contentType)
-    w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=report_%s.pdf", reportID))
-    
-    // Write the content to the response
-    w.Write(content)
 }
