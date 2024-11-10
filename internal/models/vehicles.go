@@ -1,8 +1,11 @@
+// vehicles.go provides data structures for vehicle data from OneStepGPS
+
 package models
 
 import "time"
 
-// Vehicle represents the essential vehicle information from OneStepGPS
+// Vehicle represents the essential vehicle information from OneStepGPS API.
+// Used when receiving vehicle updates through WebSocket in HomeView.vue
 type Vehicle struct {
     DeviceID     string     `json:"device_id"`
     DisplayName  string     `json:"display_name"`
@@ -12,7 +15,8 @@ type Vehicle struct {
     DriveState   DriveState `json:"device_state"`
 }
 
-// Location represents a point-in-time vehicle location
+// Location represents a point-in-time vehicle location.
+// Used by MapView.vue to position markers and display info windows
 type Location struct {
     Timestamp time.Time `json:"dt_tracker"`
     Latitude  float64   `json:"lat"`
@@ -23,7 +27,7 @@ type Location struct {
     Detail    LocationDetail `json:"device_point_detail"`
 }
 
-// LocationDetail contains additional point information
+// LocationDetail contains additional point information displayed in map info windows
 type LocationDetail struct {
     Speed struct {
         Value   float64 `json:"value"`
@@ -35,7 +39,8 @@ type LocationDetail struct {
     InMotion       *bool    `json:"vbus_in_motion,omitempty"`
 }
 
-// DriveState represents the vehicle's current driving status
+// DriveState represents the vehicle's current driving status.
+// Used in VehicleCard.vue for status display
 type DriveState struct {
     Status     string `json:"drive_status"` // "off", "idle", "driving"
     StatusID   string `json:"drive_status_id"`
@@ -47,12 +52,14 @@ type DriveState struct {
     BeginTime time.Time `json:"drive_status_begin_time"`
 }
 
-// APIResponse represents the top-level response from OneStepGPS API
+// APIResponse represents the top-level response from OneStepGPS API.
+// Used when fetching vehicle data in api/handlers.go
 type APIResponse struct {
     ResultList []Vehicle `json:"result_list"`
 }
 
-// Measurement represents their standard measurement format
+// Measurement represents OneStepGPS's standard measurement format.
+// Used throughout the API for consistent unit representation
 type Measurement struct {
     Value   float64 `json:"value"`
     Unit    string  `json:"unit"`

@@ -1,5 +1,5 @@
 // database.go provides MySQL database operations for storing and managing
-// vehicle preferences and cache data. It handles database connections and
+// user preferences. It handles database connections and CRUD operations
 // CRUD operations for the user_preferences table.
 
 package database
@@ -47,28 +47,13 @@ func NewDB(dsn string) (*DB, error) {
 	return &DB{db}, nil
 }
 
-
 // CreateTableIfNotExists initializes database schema
-// Creates tables for vehicles and user preferences
+// Creates table for user preferences
 func (db *DB) CreateTableIfNotExists() error {
     // Reset user_preferences table for clean state
     _, err := db.Exec(`DROP TABLE IF EXISTS user_preferences`)
     if err != nil {
         return fmt.Errorf("error dropping user_preferences table: %w", err)
-    }
-
-    // Create vehicles table (cache for vehicle data)
-    _, err = db.Exec(`
-        CREATE TABLE IF NOT EXISTS vehicles (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
-            status VARCHAR(50) NOT NULL,
-            latitude DOUBLE,
-            longitude DOUBLE
-        )
-    `)
-    if err != nil {
-        return err
     }
 
     // Create preferences table with client_id for frontend display settings
