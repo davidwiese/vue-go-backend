@@ -1,3 +1,7 @@
+// routes.go provides routing and middleware configuration.
+// It maps frontend requests to their corresponding handlers and manages CORS policies
+// for both development and production environments.
+
 package api
 
 import (
@@ -14,22 +18,25 @@ type RouteGroup struct {
     routes  []Route
 }
 
-// Route represents a single route
+// Route represents a single endpoint configuration
 type Route struct {
     path    string
     method  string
     handler http.HandlerFunc
 }
 
-// SetupRoutes configures all the routes for our application
+// SetupRoutes configures all API endpoints for the application
+// Called in main.go during server initialization
 func (h *Handler) SetupRoutes() {
-    // Define route groups
+    // Define route groups with their respective endpoints
     groups := []RouteGroup{
         {
             prefix: "/vehicles",
             handler: h,
             routes: []Route{
                 {
+                    // Used in HomeView.vue: fetchVehicles() to get initial vehicle data
+                    // GET /vehicles - Returns list of all vehicles
                     path:    "",
                     method:  http.MethodGet,
                     handler: h.VehiclesHandler,
@@ -41,16 +48,24 @@ func (h *Handler) SetupRoutes() {
             handler: h,
             routes: []Route{
                 {
+                    // Used in VehiclePreferences.vue: savePreferencesBatch() in apiService.ts
+                    // POST /preferences/batch - Bulk update vehicle preferences
                     path:    "/batch",
                     method:  http.MethodPost,
                     handler: h.BatchUpdatePreferences,
                 },
                 {
+                    // Used in VehiclePreferences.vue for CRUD operations
+                    // Multiple methods (GET, POST) for /preferences
+                    // GET: getPreferences() in apiService.ts
+                    // POST: savePreference() in apiService.ts
                     path:    "",
-                    method:  "*", // Special case for PreferencesHandler which handles multiple methods
+                    method:  "*", // Allows multiple HTTP methods
                     handler: h.PreferencesHandler,
                 },
                 {
+                    // Handles operations on specific preferences by ID
+                    // Used for PUT/DELETE operations in VehiclePreferences.vue
                     path:    "/",
                     method:  "*", // Handles requests with IDs
                     handler: h.PreferencesHandler,
@@ -62,6 +77,8 @@ func (h *Handler) SetupRoutes() {
             handler: h,
             routes: []Route{
                 {
+                    // Used in ReportDialog.vue: generateReport()
+                    // POST /report/generate - Generates and returns PDF report
                     path:    "/generate",
                     method:  http.MethodPost,
                     handler: h.GenerateReportHandler,
@@ -70,11 +87,12 @@ func (h *Handler) SetupRoutes() {
         },
     }
 
-    // Register all routes with CORS middleware
+    // Registers each route with middleware
     for _, group := range groups {
         for _, route := range group.routes {
             fullPath := group.prefix + route.path
             fmt.Printf("Registering route: %s\n", fullPath)
+            // Apply CORS and method checking middleware to each route
             http.Handle(fullPath, withCORS(methodHandler(route.method, route.handler)))
         }
     }
@@ -82,9 +100,10 @@ func (h *Handler) SetupRoutes() {
     fmt.Println("Routes setup completed")
 }
 
-// methodHandler creates a handler that checks the HTTP method
+// methodHandler ensures requests use the allowed HTTP method
 func methodHandler(allowedMethod string, handler http.HandlerFunc) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        // Allow all methods if "*" is specified, otherwise check for match
         if allowedMethod != "*" && r.Method != allowedMethod {
             http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
             return
@@ -93,11 +112,12 @@ func methodHandler(allowedMethod string, handler http.HandlerFunc) http.Handler 
     })
 }
 
-// CORS middleware functions remain the same
+// withCORS adds CORS headers to responses
 func withCORS(next http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         origin := r.Header.Get("Origin")
         
+        // Set CORS headers if origin is allowed
         if isAllowedOrigin(origin) {
             w.Header().Set("Access-Control-Allow-Origin", origin)
             w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
@@ -105,6 +125,7 @@ func withCORS(next http.Handler) http.Handler {
             w.Header().Set("Access-Control-Allow-Credentials", "true")
         }
 
+        // Handle preflight requests (OPTIONS method)
         if r.Method == "OPTIONS" {
             w.WriteHeader(http.StatusOK)
             return
@@ -114,14 +135,16 @@ func withCORS(next http.Handler) http.Handler {
     })
 }
 
-// getAllowedOrigins returns the list of allowed origins from environment variables
+// getAllowedOrigins retrieves allowed CORS origins from environment
+// Development: localhost:5173
+// Production: S3 bucket URL
 func getAllowedOrigins() []string {
 	// Default development origin
 	origins := []string{"http://localhost:5173"}
 	
-	// Get additional origins from environment variable
+	// Add production origins from environment variable
 	if additionalOrigins := os.Getenv("ALLOWED_ORIGINS"); additionalOrigins != "" {
-		// Split by comma and trim spaces
+		// Split comma-separated origins and clean them
 		for _, origin := range strings.Split(additionalOrigins, ",") {
 			origin = strings.TrimSpace(origin)
 			if origin != "" {
@@ -133,7 +156,8 @@ func getAllowedOrigins() []string {
 	return origins
 }
 
-// isAllowedOrigin checks if the origin is in the allowed list
+// isAllowedOrigin checks if an origin is allowed for CORS
+// Used by withCORS middleware to validate request origins
 func isAllowedOrigin(origin string) bool {
 	allowedOrigins := getAllowedOrigins()
 	for _, allowed := range allowedOrigins {

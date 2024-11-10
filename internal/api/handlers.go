@@ -1,4 +1,4 @@
-// Package api handles all HTTP endpoints and business logic
+// handlers.go handles all HTTP endpoints and business logic
 
 package api
 
