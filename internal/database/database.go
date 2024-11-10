@@ -1,3 +1,7 @@
+// database.go provides MySQL database operations for storing and managing
+// vehicle preferences and cache data. It handles database connections and
+// CRUD operations for the user_preferences table.
+
 package database
 
 import (
@@ -9,18 +13,21 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
+// DB wraps the sql.DB connection and provides custom database methods
 type DB struct {
 	*sql.DB
 }
 
+// Execer interface allows for transaction support in database operations
 type Execer interface {
     Exec(query string, args ...interface{}) (sql.Result, error)
     QueryRow(query string, args ...interface{}) *sql.Row
 }
 
-
+// NewDB creates a new database connection with proper configuration
+// Called in main.go during server initialization
 func NewDB(dsn string) (*DB, error) {
-	// Add parseTime=true parameter safely
+	// Ensure MySQL parses time values correctly
 	if !strings.Contains(dsn, "?") {
 		dsn += "?parseTime=true"
 	} else if !strings.Contains(dsn, "parseTime=true") {
@@ -32,6 +39,7 @@ func NewDB(dsn string) (*DB, error) {
 		return nil, fmt.Errorf("error opening database: %w", err)
 	}
 
+    // Verify connection is working
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("error connecting to database: %w", err)
 	}
@@ -39,14 +47,17 @@ func NewDB(dsn string) (*DB, error) {
 	return &DB{db}, nil
 }
 
+
+// CreateTableIfNotExists initializes database schema
+// Creates tables for vehicles and user preferences
 func (db *DB) CreateTableIfNotExists() error {
-    // First, try dropping the user_preferences table if it exists
+    // Reset user_preferences table for clean state
     _, err := db.Exec(`DROP TABLE IF EXISTS user_preferences`)
     if err != nil {
         return fmt.Errorf("error dropping user_preferences table: %w", err)
     }
 
-    // Create vehicles table
+    // Create vehicles table (cache for vehicle data)
     _, err = db.Exec(`
         CREATE TABLE IF NOT EXISTS vehicles (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -60,7 +71,8 @@ func (db *DB) CreateTableIfNotExists() error {
         return err
     }
 
-    // Create preferences table with client_id
+    // Create preferences table with client_id for frontend display settings
+    // Used by VehiclePreferences.vue to store user customizations
     _, err = db.Exec(`
         CREATE TABLE user_preferences (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -77,7 +89,8 @@ func (db *DB) CreateTableIfNotExists() error {
     return err
 }
 
-
+// GetAllPreferencesForClient retrieves all preferences for a specific client
+// Used by VehicleList.vue during initial load and after updates
 func (db *DB) GetAllPreferencesForClient(clientID string) ([]models.UserPreference, error) {
     query := `
         SELECT id, device_id, client_id, display_name, is_hidden, sort_order, created_at, updated_at
@@ -87,6 +100,7 @@ func (db *DB) GetAllPreferencesForClient(clientID string) ([]models.UserPreferen
     `
     fmt.Printf("Executing query: %s with clientID: %s\n", query, clientID)
     
+    // Execute query and handle results
     rows, err := db.Query(query, clientID)
     if err != nil {
         return nil, fmt.Errorf("error querying preferences: %w", err)
@@ -110,7 +124,7 @@ func (db *DB) GetAllPreferencesForClient(clientID string) ([]models.UserPreferen
         if err != nil {
             return nil, fmt.Errorf("error scanning preference row: %w", err)
         }
-
+        // Convert nullable timestamps to actual times if valid
         if createdAt.Valid {
             pref.CreatedAt = createdAt.Time
         }
@@ -129,7 +143,9 @@ func (db *DB) GetAllPreferencesForClient(clientID string) ([]models.UserPreferen
 }
 
 // GetPreferenceByDeviceAndClientID retrieves a specific preference
+// Used when updating individual vehicle preferences
 func (db *DB) GetPreferenceByDeviceAndClientID(deviceID, clientID string, execer Execer) (*models.UserPreference, error) {
+    // Use provided execer (transaction) or default to db connection
     if execer == nil {
         execer = db.DB
     }
@@ -137,6 +153,7 @@ func (db *DB) GetPreferenceByDeviceAndClientID(deviceID, clientID string, execer
     var pref models.UserPreference
     var createdAt, updatedAt sql.NullTime
 
+    // Query single preference
     err := execer.QueryRow(`
         SELECT id, device_id, client_id, display_name, is_hidden, sort_order, created_at, updated_at
         FROM user_preferences
@@ -152,6 +169,7 @@ func (db *DB) GetPreferenceByDeviceAndClientID(deviceID, clientID string, execer
         &updatedAt,
     )
 
+    // Handle case where preference doesn't exist
     if err == sql.ErrNoRows {
         return nil, nil
     }
@@ -170,7 +188,8 @@ func (db *DB) GetPreferenceByDeviceAndClientID(deviceID, clientID string, execer
 }
 
 
-// CreatePreference creates a new preference
+// CreatePreference creates or updates a preference
+// Used by VehiclePreferences.vue when saving individual preferences
 func (db *DB) CreatePreference(pref *models.PreferenceCreate, execer Execer) (*models.UserPreference, error) {
     if execer == nil {
         execer = db.DB
@@ -191,19 +210,22 @@ func (db *DB) CreatePreference(pref *models.PreferenceCreate, execer Execer) (*m
     }
     fmt.Printf("Created/Updated preference: device_id=%s, client_id=%s\n", pref.DeviceID, pref.ClientID)
 
-    // Return the newly created or updated preference
+    // Return the updated preference data
     return db.GetPreferenceByDeviceAndClientID(pref.DeviceID, pref.ClientID, execer)
 
 }
 
-// UpdatePreferenceByDeviceAndClientID updates an existing preference
+// UpdatePreferenceByDeviceAndClientID updates specific fields of an existing preference
+// Used by VehiclePreferences.vue for partial updates
 func (db *DB) UpdatePreferenceByDeviceAndClientID(deviceID, clientID string, updates *models.PreferenceUpdate, execer Execer) (*models.UserPreference, error) {
     if execer == nil {
         execer = db.DB
     }
+    // Build dynamic update query based on provided fields
     query := "UPDATE user_preferences SET updated_at = NOW()"
     args := []interface{}{}
 
+    // Add fields to update only if they're provided
     if updates.DisplayName != nil {
         query += ", display_name = ?"
         args = append(args, *updates.DisplayName)
@@ -220,11 +242,13 @@ func (db *DB) UpdatePreferenceByDeviceAndClientID(deviceID, clientID string, upd
     query += " WHERE device_id = ? AND client_id = ?"
     args = append(args, deviceID, clientID)
 
+    // Execute update query
     result, err := execer.Exec(query, args...)
     if err != nil {
         return nil, fmt.Errorf("error updating preference: %w", err)
     }
 
+    // Verify update was successful
     rowsAffected, err := result.RowsAffected()
     if err != nil {
         return nil, fmt.Errorf("error getting rows affected: %w", err)
@@ -235,11 +259,12 @@ func (db *DB) UpdatePreferenceByDeviceAndClientID(deviceID, clientID string, upd
     }
     fmt.Printf("Updated preference: device_id=%s, client_id=%s\n", deviceID, clientID)
 
-    // Pass execer to GetPreferenceByDeviceAndClientID
+    // Return updated preference data
     return db.GetPreferenceByDeviceAndClientID(deviceID, clientID, execer)
 }
 
-// DeletePreference deletes a preference
+// DeletePreference removes a preference from the database
+// Used by VehiclePreferences.vue when removing customizations
 func (db *DB) DeletePreference(deviceID, clientID string) error {
     result, err := db.Exec("DELETE FROM user_preferences WHERE device_id = ? AND client_id = ?", deviceID, clientID)
     if err != nil {
