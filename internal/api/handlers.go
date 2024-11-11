@@ -79,7 +79,7 @@ func (h *Handler) PreferencesHandler(w http.ResponseWriter, r *http.Request) {
     fmt.Println("PreferencesHandler called with path:", r.URL.Path)
 
      // Extract deviceID from URL path if present
-	path := strings.TrimPrefix(r.URL.Path, "/preferences")
+	path := strings.TrimPrefix(r.URL.Path, "/api/preferences")
 	deviceID := strings.TrimPrefix(path, "/")
 
     // Route to appropriate handler based on HTTP method
