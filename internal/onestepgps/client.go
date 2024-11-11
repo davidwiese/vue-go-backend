@@ -48,22 +48,30 @@ func NewClient(apiKey string) *Client {
 // GetDevices retrieves all vehicles with their latest positions.
 // Used by websocket hub for real-time updates and initial data load.
 func (c *Client) GetDevices() ([]models.Vehicle, error) {
-    // Build URL with all needed parameters
-    url := fmt.Sprintf("%s/device?latest_point=true&api-key=%s", baseURL, c.apiKey)
+    // Build URL without api key in query param
+    url := fmt.Sprintf("%s/device?latest_point=true", baseURL)
+    fmt.Printf("Making request to URL: %s\n", url)
+    fmt.Printf("Using API Key: %s\n", c.apiKey)  // Be careful with logging keys in production
     
-    // Make GET request to OneStepGPS API
-    resp, err := c.httpClient.Get(url)
+    req, err := http.NewRequest("GET", url, nil)
+    if err != nil {
+        return nil, fmt.Errorf("error creating request: %w", err)
+    }
+
+    req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.apiKey))
+    fmt.Printf("Request headers: %+v\n", req.Header)
+    
+    resp, err := c.httpClient.Do(req)
     if err != nil {
         return nil, fmt.Errorf("error making request: %w", err)
     }
     defer resp.Body.Close()
 
-    // Validate response status
     if resp.StatusCode != http.StatusOK {
-        return nil, fmt.Errorf("API request failed with status: %d", resp.StatusCode)
+        body, _ := io.ReadAll(resp.Body)
+        return nil, fmt.Errorf("API request failed with status: %d, body: %s", resp.StatusCode, string(body))
     }
 
-    // Parse response into Vehicle struct
     var apiResp models.APIResponse
     if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
         return nil, fmt.Errorf("error decoding response: %w", err)
