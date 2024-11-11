@@ -31,7 +31,7 @@ func (h *Handler) SetupRoutes() {
     // Define route groups with their respective endpoints
     groups := []RouteGroup{
         {
-            prefix: "/vehicles",
+            prefix: "/api/vehicles",
             handler: h,
             routes: []Route{
                 {
@@ -44,7 +44,7 @@ func (h *Handler) SetupRoutes() {
             },
         },
         {
-            prefix: "/preferences",
+            prefix: "/api/preferences",
             handler: h,
             routes: []Route{
                 {
@@ -73,7 +73,7 @@ func (h *Handler) SetupRoutes() {
             },
         },
         {
-            prefix: "/report",
+            prefix: "/api/report",
             handler: h,
             routes: []Route{
                 {
