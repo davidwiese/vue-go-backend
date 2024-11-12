@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/davidwiese/fleet-tracker-backend/internal/models"
 	_ "github.com/go-sql-driver/mysql"
@@ -50,15 +51,9 @@ func NewDB(dsn string) (*DB, error) {
 // CreateTableIfNotExists initializes database schema
 // Creates table for user preferences
 func (db *DB) CreateTableIfNotExists() error {
-    // Reset user_preferences table for clean state
-    _, err := db.Exec(`DROP TABLE IF EXISTS user_preferences`)
-    if err != nil {
-        return fmt.Errorf("error dropping user_preferences table: %w", err)
-    }
-
     // Create preferences table with client_id for frontend display settings
     // Used by VehiclePreferences.vue to store user customizations
-    _, err = db.Exec(`
+    _, err := db.Exec(`
         CREATE TABLE user_preferences (
             id INT AUTO_INCREMENT PRIMARY KEY,
             device_id VARCHAR(255) NOT NULL,
@@ -266,4 +261,27 @@ func (db *DB) DeletePreference(deviceID, clientID string) error {
     }
 
     return nil
+}
+
+// CleanupOldPreferences removes preferences that haven't been updated in the specified duration
+// Can be called periodically (e.g., once a day) from main.go
+func (db *DB) CleanupOldPreferences(age time.Duration) (int64, error) {
+    // Delete preferences older than specified age
+    result, err := db.Exec(`
+        DELETE FROM user_preferences 
+        WHERE updated_at < NOW() - INTERVAL ? DAY
+    `, int(age.Hours()/24))
+    
+    if err != nil {
+        return 0, fmt.Errorf("error cleaning up old preferences: %w", err)
+    }
+
+    // Return number of rows affected
+    rowsDeleted, err := result.RowsAffected()
+    if err != nil {
+        return 0, fmt.Errorf("error getting rows affected: %w", err)
+    }
+
+    fmt.Printf("Cleaned up %d old preferences\n", rowsDeleted)
+    return rowsDeleted, nil
 }

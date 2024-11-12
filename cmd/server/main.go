@@ -46,6 +46,19 @@ func main() {
 		log.Fatal("Error creating tables:", err)
 	}
 
+	// Clean up old preferences
+	go func() {
+        for {
+            time.Sleep(24 * time.Hour)  // Run once per day
+            rowsDeleted, err := db.CleanupOldPreferences(90 * 24 * time.Hour)  // 90 days
+            if err != nil {
+                log.Printf("Error during preferences cleanup: %v", err)
+            } else if rowsDeleted > 0 {
+                log.Printf("Cleaned up %d old preferences", rowsDeleted)
+            }
+        }
+    }()
+
 	// Initialize OneStepGPS API client
 	// This client is used to fetch real-time vehicle data
 	// Used by WebSocket hub to broadcast updates to connected clients
