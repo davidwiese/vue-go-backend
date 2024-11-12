@@ -9,21 +9,21 @@
 The **Trackify Fleet Backend** is a Go-based server application that integrates with the OneStep GPS API to provide real-time vehicle tracking data, user preference management, and report generation capabilities. Built with proper package structure and dependency management, it serves as a robust backend for the Trackify Fleet dashboard.
 
 ## Technologies Used
- - **Backend Framework:**
-  - Go
-  - Gorilla WebSocket
-  - OneStep GPS API Integration
-  - AWS SDK
+- **Backend Framework:**
+    - Go
+    - Gorilla WebSocket
+    - OneStep GPS API Integration
+    - AWS SDK
 
- - **Database:**
-  - MySQL on AWS RDS
-  - SQL Query Optimization
-  - Connection Pooling
+- **Database:**
+    - MySQL on AWS RDS
+    - SQL Query Optimization
+    - Connection Pooling
 
- - **Deployment:**
-  - AWS Elastic Beanstalk
-  - Environment Configuration
-  - SSL/TLS Security
+- **Deployment:**
+    - AWS Elastic Beanstalk
+    - Environment Configuration
+    - SSL/TLS Security
 
 ## Features
 
