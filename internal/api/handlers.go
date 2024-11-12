@@ -319,49 +319,15 @@ func (h *Handler) GenerateReportHandler(w http.ResponseWriter, r *http.Request) 
         return
     }
 
-    // Construct API request with required report parameters
+    // Construct API request using the incoming spec directly
     apiReq := models.ReportRequest{
-        DateTimeFrom: incomingReq.ReportSpec.DateTimeFrom,
-        DateTimeTo:   incomingReq.ReportSpec.DateTimeTo,
-        DeviceIDList: incomingReq.ReportSpec.DeviceIDList,
-        ReportType:   "general_info", // Define report type from OneStepGPS
-        UserReportName: incomingReq.ReportSpec.UserReportName,
-        // Define fields to include in the report
-        ReportOutputFieldList: []string{
-            "device_id",
-            "device_name",
-            "groups",
-            "route_length",
-            "move_duration",
-            "stop_duration",
-            "stop_count",
-            "speed_top",
-            "speed_avg",
-            "speed_count",
-            "engine_work",
-            "engine_idle",
-            "engine_time",
-        },
-        // Configure report display options
-        ReportOptions: map[string]interface{}{
-            "display_decimal_places": 1,
-            "duration_format": "standard",
-            "min_stop_duration": map[string]interface{}{
-                "value": 5,
-                "unit": "m",
-                "display": "5m",
-            },
-            "use_pdf_landscape": true,
-        },
-        // Configure specific options for "general_info" report type
-        ReportOptionsGeneralInfo: map[string]interface{}{
-            "minimum_speeding_threshold": map[string]interface{}{
-                "value": 50,
-                "unit": "mph",
-                "display": "50 mph",
-            },
-            "use_nonmerged_layout": false,
-        },
+        DateTimeFrom:          incomingReq.ReportSpec.DateTimeFrom,
+        DateTimeTo:           incomingReq.ReportSpec.DateTimeTo,
+        DeviceIDList:         incomingReq.ReportSpec.DeviceIDList,
+        ReportType:           incomingReq.ReportSpec.ReportType,
+        UserReportName:       incomingReq.ReportSpec.UserReportName,
+        ReportOutputFieldList: incomingReq.ReportSpec.ReportOutputFieldList,
+        ReportOptions:        incomingReq.ReportSpec.ReportOptions,
     }
 
     // Initialize report generation with OneStepGPS API
