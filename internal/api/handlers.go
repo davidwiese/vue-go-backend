@@ -321,14 +321,45 @@ func (h *Handler) GenerateReportHandler(w http.ResponseWriter, r *http.Request) 
 
     // Construct API request using the incoming spec directly
     apiReq := models.ReportRequest{
-        DateTimeFrom:          incomingReq.ReportSpec.DateTimeFrom,
-        DateTimeTo:           incomingReq.ReportSpec.DateTimeTo,
-        DeviceIDList:         incomingReq.ReportSpec.DeviceIDList,
-        ReportType:           incomingReq.ReportSpec.ReportType,
-        UserReportName:       incomingReq.ReportSpec.UserReportName,
-        ReportOutputFieldList: incomingReq.ReportSpec.ReportOutputFieldList,
-        ReportOptions:        incomingReq.ReportSpec.ReportOptions,
-    }
+    DateTimeFrom: incomingReq.ReportSpec.DateTimeFrom,
+    DateTimeTo:   incomingReq.ReportSpec.DateTimeTo,
+    DeviceIDList: incomingReq.ReportSpec.DeviceIDList,
+    ReportType:   "general_info",  // Hardcoded to always use general_info
+    UserReportName: incomingReq.ReportSpec.UserReportName,
+    ReportOutputFieldList: []string{
+        "device_id",
+        "device_name",
+        "groups",
+        "route_length",
+        "move_duration",
+        "stop_duration",
+        "stop_count",
+        "speed_top",
+        "speed_avg",
+        "speed_count",
+        "engine_work",
+        "engine_idle",
+        "engine_time",
+    },
+    ReportOptions: map[string]interface{}{
+        "display_decimal_places": 1,
+        "duration_format": "standard",
+        "min_stop_duration": map[string]interface{}{
+            "value": 5,
+            "unit": "m",
+            "display": "5m",
+        },
+        "use_pdf_landscape": true,
+    },
+    ReportOptionsGeneralInfo: map[string]interface{}{
+        "minimum_speeding_threshold": map[string]interface{}{
+            "value": 50,
+            "unit": "mph",
+            "display": "50 mph",
+        },
+        "use_nonmerged_layout": false,
+    },
+}
 
     // Initialize report generation with OneStepGPS API
     generateURL := fmt.Sprintf("%s/report/generate", h.config.BaseURL)
