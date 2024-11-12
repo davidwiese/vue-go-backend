@@ -54,7 +54,7 @@ func (db *DB) CreateTableIfNotExists() error {
     // Create preferences table with client_id for frontend display settings
     // Used by VehiclePreferences.vue to store user customizations
     _, err := db.Exec(`
-        CREATE TABLE user_preferences (
+        CREATE TABLE IF NOT EXISTS user_preferences (
             id INT AUTO_INCREMENT PRIMARY KEY,
             device_id VARCHAR(255) NOT NULL,
             client_id VARCHAR(255) NOT NULL DEFAULT 'default',
