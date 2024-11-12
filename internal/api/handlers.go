@@ -469,6 +469,9 @@ func (h *Handler) GenerateReportHandler(w http.ResponseWriter, r *http.Request) 
 
         // If report is complete, download and send to client
         if statusResponse.Status == "done" {
+            // Add a small delay to ensure PDF is fully generated
+            time.Sleep(2 * time.Second)
+            
             // Construct download URL with report ID and PDF format
             exportURL := fmt.Sprintf("%s/report-generated/export/%s?file_type=pdf&api-key=%s", 
                 h.config.BaseURL, reportID, h.config.OneStepGPSAPIKey)
