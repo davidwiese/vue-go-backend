@@ -51,7 +51,6 @@ func (c *Client) GetDevices() ([]models.Vehicle, error) {
     // Build URL without api key in query param
     url := fmt.Sprintf("%s/device?latest_point=true", baseURL)
     fmt.Printf("Making request to URL: %s\n", url)
-    fmt.Printf("Using API Key: %s\n", c.apiKey)  // Be careful with logging keys in production
     
     req, err := http.NewRequest("GET", url, nil)
     if err != nil {
