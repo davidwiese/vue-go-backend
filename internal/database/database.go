@@ -171,6 +171,7 @@ func (db *DB) GetPreferenceByDeviceAndClientID(deviceID, clientID string, execer
 // CreatePreference creates or updates a preference
 // Used by VehiclePreferences.vue when saving individual preferences
 func (db *DB) CreatePreference(pref *models.PreferenceCreate, execer Execer) (*models.UserPreference, error) {
+    // Use provided execer (transaction) or default to db connection
     if execer == nil {
         execer = db.DB
     }

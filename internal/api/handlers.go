@@ -208,6 +208,7 @@ func (h *Handler) getPreference(w http.ResponseWriter, r *http.Request, deviceID
 // createPreference creates a new preference for the current client.
 func (h *Handler) createPreference(w http.ResponseWriter, r *http.Request) {
     fmt.Println("Creating preference...")
+    // Decode incoming request body into PreferenceCreate struct
     var newPref models.PreferenceCreate
     if err := json.NewDecoder(r.Body).Decode(&newPref); err != nil {
         fmt.Printf("Error decoding request body: %v\n", err)
@@ -217,10 +218,13 @@ func (h *Handler) createPreference(w http.ResponseWriter, r *http.Request) {
 
     fmt.Printf("Received preference create request: %+v\n", newPref)
 
+    // Set default client ID if not provided
     if newPref.ClientID == "" {
         newPref.ClientID = "default"
     }
 
+    // Create or update preference in database
+    // Pass nil as execer since we're not in a transaction
     pref, err := h.DB.CreatePreference(&newPref, nil)  // Pass nil as execer
     if err != nil {
         fmt.Printf("Error creating preference: %v\n", err)
@@ -230,6 +234,7 @@ func (h *Handler) createPreference(w http.ResponseWriter, r *http.Request) {
 
     fmt.Printf("Successfully created/updated preference: %+v\n", pref)
     
+    // Return updated preference
     w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(http.StatusCreated)
     json.NewEncoder(w).Encode(pref)
