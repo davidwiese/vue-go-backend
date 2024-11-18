@@ -168,7 +168,7 @@ func (h *Handler) getAllPreferences(w http.ResponseWriter, r *http.Request) {
         clientID = "default"
     }
 
-    // Update your DB function to accept clientID
+    // Fetch preferences from database
     preferences, err := h.DB.GetAllPreferencesForClient(clientID)
     if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
