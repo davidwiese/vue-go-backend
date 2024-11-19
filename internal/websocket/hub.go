@@ -16,11 +16,11 @@ import (
 // Hub coordinates WebSocket connections and vehicle data broadcasting.
 // It maintains connected clients and handles real-time updates from OneStepGPS.
 type Hub struct {
-    clients map[*websocket.Conn]bool    // Active WebSocket connections
-    Broadcast chan []models.Vehicle     // Channel for sending vehicle updates to all clients
+    clients map[*websocket.Conn]bool    // Track active WebSocket connections
+    Broadcast chan []models.Vehicle     // Channel for sending vehicle updates to all clients, like a thread-safe message queue
     upgrader websocket.Upgrader         // WebSocket connection upgrader
-    gpsClient *onestepgps.Client        // Client for fetching OneStepGPS data
-    updateInterval time.Duration        // How often to poll for vehicle updates
+    gpsClient *onestepgps.Client        // Client for fetching updates
+    updateInterval time.Duration        // How often to poll OneStepGPS
 }
 
 // NewHub creates a new WebSocket hub with specified update frequency.
@@ -33,7 +33,7 @@ func NewHub(gpsClient *onestepgps.Client, updateInterval time.Duration) *Hub {
             ReadBufferSize:  1024,
             WriteBufferSize: 1024,
             CheckOrigin: func(r *http.Request) bool {
-                return true // Allow all origins for development
+                return true // Allow all origins (development)
             },
         },
         gpsClient:      gpsClient,
@@ -49,8 +49,8 @@ func (h *Hub) Run() {
     // Start polling in separate goroutine
     go h.pollUpdates()
 
-    // Main broadcast loop
-    for vehicles := range h.Broadcast {
+    // Broadcasting updates to all clients
+    for vehicles := range h.Broadcast { // Listens to channel
         // Send updates to all connected clients
         for client := range h.clients {
             err := client.WriteJSON(vehicles)
@@ -75,7 +75,7 @@ func (h *Hub) pollUpdates() {
             log.Printf("Error fetching vehicle updates: %v", err)
             continue // Skip this update on error
         }
-        h.Broadcast <- vehicles // Send update to broadcast channel
+        h.Broadcast <- vehicles // Send update to broadcast channel, thread-safe
     }
 }
 

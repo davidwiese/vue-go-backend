@@ -41,7 +41,7 @@ func main() {
 	defer db.Close() // Ensure database connection is closed when application exits
 
 	// Create necessary database tables if they don't exist
-	// Creates tables: vehicles (for cache), user_preferences (for frontend settings)
+	// Creates user_preferences table for frontend settings
 	if err := db.CreateTableIfNotExists(); err != nil {
 		log.Fatal("Error creating tables:", err)
 	}
@@ -93,6 +93,7 @@ func main() {
 
 	// Setup WebSocket endpoint
 	// Frontend connects to this in HomeView.vue for real-time vehicle updates
+	// Can maybe move to separate package?
 	http.HandleFunc("/ws", hub.HandleWebSocket)
 
 	// Start HTTP server
