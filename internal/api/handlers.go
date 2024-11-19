@@ -326,11 +326,12 @@ func (h *Handler) GenerateReportHandler(w http.ResponseWriter, r *http.Request) 
     }
 
     // Construct API request using the incoming spec directly
+    // Some of this is probably redundant or could be cleaned up with defaults
     apiReq := models.ReportRequest{
     DateTimeFrom: incomingReq.ReportSpec.DateTimeFrom,
     DateTimeTo:   incomingReq.ReportSpec.DateTimeTo,
     DeviceIDList: incomingReq.ReportSpec.DeviceIDList,
-    ReportType:   "general_info",  // Hardcoded to always use general_info
+    ReportType:   "general_info",
     UserReportName: incomingReq.ReportSpec.UserReportName,
     ReportOutputFieldList: []string{
         "device_id",
@@ -399,6 +400,7 @@ func (h *Handler) GenerateReportHandler(w http.ResponseWriter, r *http.Request) 
     fmt.Printf("Initial response: %s\n", string(respBody))
 
     // Define a local struct to match the JSON response structure from OneStepGPS
+    // Get report ID for polling status
     var generateResponse struct {
         ReportGeneratedID string `json:"report_generated_id"`
         Status           string `json:"status"`
@@ -431,11 +433,11 @@ func (h *Handler) GenerateReportHandler(w http.ResponseWriter, r *http.Request) 
         // Construct URL for status check endpoint
         statusURL := fmt.Sprintf("%s/report-generated/%s", h.config.BaseURL, reportID)
 
-        // Create new GET request with authorization header
+        // Create new GET request with authorization header to check status
         statusReq, _ := http.NewRequest("GET", statusURL, nil)
         statusReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", h.config.OneStepGPSAPIKey))
 
-        // Send the request and get the response
+        // Send the request and get the response to check status
         statusResp, err := http.DefaultClient.Do(statusReq)
         if err != nil {
             http.Error(w, "Error checking status", http.StatusInternalServerError)
@@ -510,5 +512,6 @@ func (h *Handler) GenerateReportHandler(w http.ResponseWriter, r *http.Request) 
         time.Sleep(1 * time.Second) // Wait before next polling attempt
     }
 
+    // Timeout if report takes too long
     http.Error(w, "Report generation timed out", http.StatusGatewayTimeout)
 }
