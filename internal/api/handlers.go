@@ -134,14 +134,15 @@ func (h *Handler) BatchUpdatePreferences(w http.ResponseWriter, r *http.Request)
 
     // Process each preference in the transaction
     for _, pref := range preferences {
+        // Use transaction for all operations
         _, err := h.DB.CreatePreference(&pref, tx)
         if err != nil {
             http.Error(w, fmt.Sprintf("Error updating preference: %v", err), http.StatusInternalServerError)
-            return
+            return // Rollback will happen from defer
         }
     }
 
-    // Commit transaction
+    // Commit transaction if all updates succeeded
     if err := tx.Commit(); err != nil {
         http.Error(w, fmt.Sprintf("Error committing transaction: %v", err), http.StatusInternalServerError)
         return
