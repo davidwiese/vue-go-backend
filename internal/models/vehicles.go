@@ -6,6 +6,7 @@ import "time"
 
 // Vehicle represents the essential vehicle information from OneStepGPS API.
 // Used when receiving vehicle updates through WebSocket in HomeView.vue
+// Transform API response to our domain model
 type Vehicle struct {
     DeviceID     string     `json:"device_id"`
     DisplayName  string     `json:"display_name"`

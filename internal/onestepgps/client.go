@@ -52,14 +52,15 @@ func (c *Client) GetDevices() ([]models.Vehicle, error) {
     url := fmt.Sprintf("%s/device?latest_point=true", baseURL)
     fmt.Printf("Making request to URL: %s\n", url)
     
+    // Create authenticated request
     req, err := http.NewRequest("GET", url, nil)
     if err != nil {
         return nil, fmt.Errorf("error creating request: %w", err)
     }
-
     req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.apiKey))
     fmt.Printf("Request headers: %+v\n", req.Header)
     
+    // Make request and handle response
     resp, err := c.httpClient.Do(req)
     if err != nil {
         return nil, fmt.Errorf("error making request: %w", err)
@@ -71,6 +72,7 @@ func (c *Client) GetDevices() ([]models.Vehicle, error) {
         return nil, fmt.Errorf("API request failed with status: %d, body: %s", resp.StatusCode, string(body))
     }
 
+    // Parse response into Vehicle struct
     var apiResp models.APIResponse
     if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
         return nil, fmt.Errorf("error decoding response: %w", err)
@@ -79,8 +81,8 @@ func (c *Client) GetDevices() ([]models.Vehicle, error) {
     return apiResp.ResultList, nil
 }
 
-// GetVehicleUpdates polls for vehicle updates at specified interval.
-// Used by websocket hub to maintain real-time vehicle data.
+// GetVehicleUpdates polls for vehicle updates at specified interval
+// Used by websocket hub to receive real-time vehicle data
 func (c *Client) GetVehicleUpdates(interval time.Duration, updates chan<- []models.Vehicle) {
     ticker := time.NewTicker(interval)
     defer ticker.Stop()
